@@ -79,7 +79,7 @@ function AddMealModal({ visible, onClose, onSave }) {
     setForm(prev => ({
       ...prev,
       name: food.name,
-      calories: food.calories_per_serving.toString(),
+      calories: food.calories.toString(),
       protein: food.protein_g.toString(),
       carbs: food.carbs_g.toString(),
       fats: food.fats_g.toString(),
@@ -134,9 +134,9 @@ function AddMealModal({ visible, onClose, onSave }) {
                   <TouchableOpacity style={styles.searchResultItem} onPress={() => selectFood(item)}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.searchResultName}>{item.name}</Text>
-                      <Text style={styles.searchResultSub}>{item.serving_description}</Text>
+                      <Text style={styles.searchResultSub}>{item.portion} {item.unit}</Text>
                     </View>
-                    <Text style={styles.searchResultCal}>{item.calories_per_serving} kcal</Text>
+                    <Text style={styles.searchResultCal}>{item.calories} kcal</Text>
                   </TouchableOpacity>
                 )}
                 ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: COLORS.border }} />}
