@@ -510,6 +510,17 @@ export async function addMeal(db, dateStr, mealType, name, calories, protein, ca
   );
 }
 
+export async function getRecentFoods(db, limit = 10) {
+  return db.getAllAsync(
+    `SELECT name, calories, protein_g, carbs_g, fats_g
+     FROM nutrition_log
+     GROUP BY name
+     ORDER BY MAX(id) DESC
+     LIMIT ?`,
+    [limit]
+  );
+}
+
 export async function saveToFoodDatabase(db, name, calories, protein, carbs, fats) {
   const existing = await db.getFirstAsync('SELECT id FROM food_database WHERE name = ?', [name]);
   if (existing) return;
