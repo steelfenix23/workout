@@ -129,6 +129,12 @@ export async function initDatabase(db) {
     await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seeded', '1')");
   }
 
+  if (currentVersion < 3) {
+    await db.execAsync('DELETE FROM food_database;');
+    await seedFoods(db);
+    await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seed_version', '3')");
+  }
+
   const profileExists = await db.getFirstAsync('SELECT id FROM profile WHERE id = 1');
   if (!profileExists) {
     await db.runAsync(
@@ -275,7 +281,10 @@ async function seedDatabase(db) {
     );
   }
 
-  // Food database
+  await seedFoods(db);
+}
+
+async function seedFoods(db) {
   const foods = [
     // [name, portion, unit, calories, protein, carbs, fats, category]
     // COLAZIONE
@@ -294,6 +303,7 @@ async function seedDatabase(db) {
     ['Uova (1 uovo)', 60, 'g', 85, 7, 0.5, 6, 'Uova'],
     ['Uova (2 uova)', 120, 'g', 170, 14, 1, 12, 'Uova'],
     ['Uova (4 uova)', 240, 'g', 340, 28, 2, 24, 'Uova'],
+    ['Albume (150ml)', 150, 'ml', 78, 16, 1, 0.3, 'Uova'],
     // AFFETTATI
     ['Fesa di tacchino', 100, 'g', 107, 22, 1, 2, 'Affettati'],
     // CEREALI
@@ -327,7 +337,7 @@ async function seedDatabase(db) {
     // PASTI COMPLETI
     ['Riso tonno olive pomodorini (piatto completo)', 1, 'porzione', 852, 52, 102, 20, 'Pasti completi'],
     ['Lasagna (porzione)', 1, 'porzione', 815, 37, 62, 43, 'Pasti completi'],
-    ['Pancake proteici avena + yogurt greco', 1, 'porzione', 250, 16, 35, 6, 'Pasti completi'],
+    ['Pancake proteici avena + yogurt greco + albume', 1, 'porzione', 330, 32, 36, 6, 'Pasti completi'],
     ['Frittatina 2 uova + pane', 1, 'porzione', 300, 18, 26, 13, 'Pasti completi'],
     ['Fesa tacchino + pane', 1, 'porzione', 237, 26, 26, 3, 'Pasti completi'],
   ];
