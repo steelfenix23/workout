@@ -385,7 +385,10 @@ export async function anticipateTrainingDay(db, date) {
     next.setDate(next.getDate() + i);
     const td = await getTrainingDayForDate(db, next);
     if (td && !td.is_rest_day) {
+      // Oggi diventa il giorno di allenamento trovato
       await db.runAsync('INSERT OR REPLACE INTO day_overrides (date, training_day_id) VALUES (?, ?)', [dateStr(date), td.id]);
+      // Il giorno "rubato" diventa riposo (swap)
+      await db.runAsync('INSERT OR REPLACE INTO day_overrides (date, training_day_id) VALUES (?, NULL)', [dateStr(next)]);
       return;
     }
   }

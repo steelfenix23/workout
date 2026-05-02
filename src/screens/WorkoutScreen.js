@@ -16,6 +16,11 @@ import { COLORS } from '../theme';
 const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
 const MONTH_NAMES = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
+function repsLabel(min, max, isBodyweight) {
+  const unit = isBodyweight ? 's' : ' reps';
+  return min === max ? `${min}${unit}` : `${min}–${max}${unit}`;
+}
+
 function suggestProgression(lastSets) {
   if (!lastSets.length) return null;
   const avgReps = lastSets.reduce((s, x) => s + x.reps, 0) / lastSets.length;
@@ -97,8 +102,7 @@ function ExerciseCard({ exercise, sets, lastSets, onSetsChange }) {
       <Text style={styles.exerciseName}>{exercise.name}</Text>
       <Text style={styles.exerciseMuscle}>{exercise.muscle_group}</Text>
       <Text style={styles.exerciseTarget}>
-        Target: {exercise.target_sets}×{exercise.target_reps_min}–{exercise.target_reps_max}
-        {isBodyweight ? 's' : ' reps'}
+        Target: {exercise.target_sets}×{repsLabel(exercise.target_reps_min, exercise.target_reps_max, isBodyweight)}
       </Text>
 
       {lastRelevant.length > 0 && (
@@ -143,8 +147,7 @@ function ExerciseCardReadOnly({ exercise, sets }) {
       <Text style={styles.exerciseName}>{exercise.name}</Text>
       <Text style={styles.exerciseMuscle}>{exercise.muscle_group}</Text>
       <Text style={styles.exerciseTarget}>
-        Target: {exercise.target_sets}×{exercise.target_reps_min}–{exercise.target_reps_max}
-        {isBodyweight ? 's' : ' reps'}
+        Target: {exercise.target_sets}×{repsLabel(exercise.target_reps_min, exercise.target_reps_max, isBodyweight)}
         {exercise.suggested_weight > 0 ? `  ·  ${exercise.suggested_weight}kg` : ''}
       </Text>
       {sets.length > 0 && (
