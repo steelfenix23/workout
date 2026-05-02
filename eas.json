@@ -1,0 +1,13 @@
+{
+  "cli": {
+    "version": ">= 18.0.0"
+  },
+  "build": {
+    "sideload": {
+      "ios": {
+        "buildConfiguration": "Release",
+        "distribution": "internal"
+      }
+    }
+  }
+}

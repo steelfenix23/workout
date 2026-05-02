@@ -1,0 +1,61 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Expo Prebuild (genera progetto iOS nativo)
+        run: npx expo prebuild --platform ios --clean --no-install
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install
+
+      - name: Build iOS (senza firma)
+        run: |
+          xcodebuild archive \
+            -workspace ios/Workout.xcworkspace \
+            -scheme Workout \
+            -configuration Release \
+            -archivePath $RUNNER_TEMP/Workout.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE="" \
+            | xcpretty || true
+
+      - name: Crea IPA non firmato
+        run: |
+          APP_PATH=$(find $RUNNER_TEMP/Workout.xcarchive/Products -name "*.app" | head -1)
+          mkdir -p $RUNNER_TEMP/ipa/Payload
+          cp -r "$APP_PATH" $RUNNER_TEMP/ipa/Payload/
+          cd $RUNNER_TEMP/ipa
+          zip -r workout.ipa Payload
+          echo "IPA creato: $RUNNER_TEMP/ipa/workout.ipa"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: workout-ios
+          path: ${{ runner.temp }}/ipa/workout.ipa
+          retention-days: 30
