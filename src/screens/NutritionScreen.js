@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
-import { getProfile, getNutritionForDate, addMeal, deleteMeal, searchFoods, todayStr } from '../database/db';
+import { getProfile, getNutritionForDate, addMeal, deleteMeal, searchFoods, todayStr, dateStr } from '../database/db';
 import { COLORS } from '../theme';
 
 const MEAL_TYPES = ['Colazione', 'Pranzo', 'Cena', 'Spuntino'];
@@ -228,31 +228,59 @@ function AddMealModal({ visible, onClose, onSave }) {
   );
 }
 
+const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+const MONTH_NAMES = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+
 export default function NutritionScreen() {
   const db = useSQLiteContext();
+  const [viewDate, setViewDate] = useState(() => new Date());
   const [profile, setProfile] = useState(null);
   const [meals, setMeals] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
+
   const todayIso = todayStr();
+
+  function viewIso() { return dateStr(viewDate); }
+
+  function isViewingToday() { return viewIso() === todayIso; }
+
+  function navigateDay(delta) {
+    setViewDate(prev => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + delta);
+      return d;
+    });
+  }
+
+  function viewDateLabel() {
+    const iso = viewIso();
+    if (iso === todayIso) return 'Oggi';
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+    if (iso === dateStr(yesterday)) return 'Ieri';
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    if (iso === dateStr(tomorrow)) return 'Domani';
+    return `${DAY_NAMES[viewDate.getDay()]} ${viewDate.getDate()} ${MONTH_NAMES[viewDate.getMonth()]}`;
+  }
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
-    }, [])
+      loadData(viewDate);
+    }, [viewDate])
   );
 
-  async function loadData() {
+  async function loadData(date) {
+    const iso = dateStr(date);
     const [prof, mealList] = await Promise.all([
       getProfile(db),
-      getNutritionForDate(db, todayIso),
+      getNutritionForDate(db, iso),
     ]);
     setProfile(prof);
     setMeals(mealList);
   }
 
   async function handleAddMeal(mealType, name, calories, protein, carbs, fats) {
-    await addMeal(db, todayIso, mealType, name, calories, protein, carbs, fats);
-    loadData();
+    await addMeal(db, viewIso(), mealType, name, calories, protein, carbs, fats);
+    loadData(viewDate);
   }
 
   async function handleDelete(id) {
@@ -261,7 +289,7 @@ export default function NutritionScreen() {
       {
         text: 'Elimina', style: 'destructive', onPress: async () => {
           await deleteMeal(db, id);
-          loadData();
+          loadData(viewDate);
         }
       },
     ]);
@@ -289,7 +317,21 @@ export default function NutritionScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.screenTitle}>Nutrizione</Text>
-      <Text style={styles.dateLabel}>Oggi — {new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
+
+      <View style={styles.dateNav}>
+        <TouchableOpacity style={styles.dateNavArrow} onPress={() => navigateDay(-1)}>
+          <Text style={styles.dateNavArrowText}>‹</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setViewDate(new Date())} style={styles.dateNavCenter}>
+          <Text style={styles.dateNavLabel}>{viewDateLabel()}</Text>
+          {!isViewingToday() && (
+            <Text style={styles.dateNavSub}>Tocca per tornare ad oggi</Text>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.dateNavArrow} onPress={() => navigateDay(1)}>
+          <Text style={styles.dateNavArrowText}>›</Text>
+        </TouchableOpacity>
+      </View>
 
       {profile && (
         <View style={styles.card}>
@@ -317,7 +359,7 @@ export default function NutritionScreen() {
       )}
 
       <View style={styles.mealsHeader}>
-        <Text style={styles.mealsTitle}>PASTI DI OGGI</Text>
+        <Text style={styles.mealsTitle}>PASTI — {viewDateLabel().toUpperCase()}</Text>
         <TouchableOpacity style={styles.addBtn} onPress={() => setModalOpen(true)}>
           <Text style={styles.addBtnText}>+ Aggiungi</Text>
         </TouchableOpacity>
@@ -325,7 +367,7 @@ export default function NutritionScreen() {
 
       {meals.length === 0 ? (
         <View style={styles.emptyMeals}>
-          <Text style={styles.emptyMealsText}>Nessun pasto registrato oggi</Text>
+          <Text style={styles.emptyMealsText}>Nessun pasto registrato</Text>
         </View>
       ) : (
         meals.map(m => (
@@ -428,4 +470,15 @@ const styles = StyleSheet.create({
   cancelBtnText: { color: COLORS.textSecondary, fontWeight: '600' },
   confirmBtn: { flex: 2, backgroundColor: COLORS.accent, borderRadius: 12, padding: 13, alignItems: 'center' },
   confirmBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+
+  dateNav: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: COLORS.card, borderRadius: 12,
+    paddingVertical: 8, paddingHorizontal: 4, marginBottom: 16,
+  },
+  dateNavArrow: { paddingHorizontal: 16, paddingVertical: 4 },
+  dateNavArrowText: { fontSize: 28, color: COLORS.accent, fontWeight: '300' },
+  dateNavCenter: { flex: 1, alignItems: 'center' },
+  dateNavLabel: { fontSize: 16, fontWeight: '700', color: COLORS.text },
+  dateNavSub: { fontSize: 11, color: COLORS.accent, marginTop: 2 },
 });
