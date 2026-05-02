@@ -12,7 +12,9 @@ import { COLORS } from '../theme';
 
 const DAY_LABELS = ['Lu', 'Ma', 'Me', 'Gi', 'Ve', 'Sa', 'Do'];
 const MONTH_NAMES = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
-const TOTAL_GLASSES = 12;
+const WATER_STEP = 0.5;   // litri per tocco
+const WATER_GOAL = 3.0;   // litri obiettivo
+const WATER_MAX_STEPS = WATER_GOAL / WATER_STEP; // 6 step
 
 function getMondayOfWeek(date) {
   const d = new Date(date);
@@ -97,10 +99,10 @@ export default function HomeScreen() {
     setWeekSessions(sessions);
   }
 
-  async function handleWaterTap(index) {
-    const newCount = index < water ? index : index + 1;
-    setWater(newCount);
-    await setWaterGlasses(db, todayIso, newCount);
+  async function handleWaterChange(delta) {
+    const next = Math.max(0, Math.min(WATER_MAX_STEPS, water + delta));
+    setWater(next);
+    await setWaterGlasses(db, todayIso, next);
   }
 
   function greeting() {
@@ -127,8 +129,8 @@ export default function HomeScreen() {
     return weekSessions.find(s => s.date === iso);
   }
 
-  const waterLiters = (water * 0.25).toFixed(2);
-  const waterPct = water / TOTAL_GLASSES;
+  const waterLiters = (water * WATER_STEP).toFixed(1);
+  const waterPct = water / WATER_MAX_STEPS;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -162,26 +164,32 @@ export default function HomeScreen() {
       {/* Acqua */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>ACQUA OGGI</Text>
-        <View style={styles.waterHeader}>
-          <Text style={styles.waterCount}>{water} / {TOTAL_GLASSES} bicchieri</Text>
-          <Text style={styles.waterLiters}>{waterLiters}L / 3L</Text>
-        </View>
         <View style={styles.waterBarTrack}>
-          <View style={[styles.waterBarFill, { width: `${waterPct * 100}%` }]} />
+          <View style={[styles.waterBarFill, { width: `${Math.min(waterPct, 1) * 100}%` }]} />
         </View>
-        <View style={styles.glassGrid}>
-          {Array.from({ length: TOTAL_GLASSES }, (_, i) => (
-            <TouchableOpacity
-              key={i}
-              style={[styles.glass, i < water && styles.glassFilled]}
-              onPress={() => handleWaterTap(i)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.glassIcon}>{i < water ? '💧' : '·'}</Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.waterControls}>
+          <TouchableOpacity
+            style={[styles.waterBtn, water === 0 && styles.waterBtnDisabled]}
+            onPress={() => handleWaterChange(-1)}
+            disabled={water === 0}
+          >
+            <Text style={styles.waterBtnText}>−0.5L</Text>
+          </TouchableOpacity>
+
+          <View style={styles.waterDisplay}>
+            <Text style={styles.waterLitersLarge}>{waterLiters}L</Text>
+            <Text style={styles.waterGoalText}>/ {WATER_GOAL}L</Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.waterBtn, water >= WATER_MAX_STEPS && styles.waterBtnDisabled]}
+            onPress={() => handleWaterChange(1)}
+            disabled={water >= WATER_MAX_STEPS}
+          >
+            <Text style={styles.waterBtnText}>+0.5L</Text>
+          </TouchableOpacity>
         </View>
-        {water >= TOTAL_GLASSES && (
+        {water >= WATER_MAX_STEPS && (
           <Text style={styles.waterComplete}>Obiettivo raggiunto! 🎉</Text>
         )}
       </View>
@@ -271,23 +279,21 @@ const styles = StyleSheet.create({
   ctaText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   // Water widget
-  waterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 },
-  waterCount: { fontSize: 16, fontWeight: '700', color: COLORS.text },
-  waterLiters: { fontSize: 13, color: COLORS.textSecondary },
-  waterBarTrack: { height: 4, backgroundColor: COLORS.border, borderRadius: 2, marginBottom: 12 },
-  waterBarFill: { height: 4, backgroundColor: '#4FC3F7', borderRadius: 2 },
-  glassGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  glass: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+  waterBarTrack: { height: 6, backgroundColor: COLORS.border, borderRadius: 3, marginBottom: 16 },
+  waterBarFill: { height: 6, backgroundColor: '#4FC3F7', borderRadius: 3 },
+  waterControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  waterBtn: {
     backgroundColor: COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
   },
-  glassFilled: { backgroundColor: '#1565C0' },
-  glassIcon: { fontSize: 18 },
-  waterComplete: { fontSize: 13, color: COLORS.success, fontWeight: '700', marginTop: 10, textAlign: 'center' },
+  waterBtnDisabled: { opacity: 0.3 },
+  waterBtnText: { color: COLORS.text, fontWeight: '700', fontSize: 15 },
+  waterDisplay: { alignItems: 'center' },
+  waterLitersLarge: { fontSize: 36, fontWeight: '700', color: '#4FC3F7' },
+  waterGoalText: { fontSize: 13, color: COLORS.textSecondary },
+  waterComplete: { fontSize: 13, color: COLORS.success, fontWeight: '700', marginTop: 12, textAlign: 'center' },
 
   // Calorie ring
   ringContainer: { alignItems: 'center', marginBottom: 12 },
