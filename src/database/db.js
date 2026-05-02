@@ -379,12 +379,16 @@ export async function skipTrainingDay(db, date) {
 }
 
 export async function anticipateTrainingDay(db, date) {
-  const tomorrow = new Date(date);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowDay = await getTrainingDayForDate(db, tomorrow);
-  if (!tomorrowDay) return;
-  const iso = dateStr(date);
-  await db.runAsync('INSERT OR REPLACE INTO day_overrides (date, training_day_id) VALUES (?, ?)', [iso, tomorrowDay.id]);
+  // Cerca il prossimo giorno di allenamento (salta i giorni di riposo)
+  for (let i = 1; i <= 6; i++) {
+    const next = new Date(date);
+    next.setDate(next.getDate() + i);
+    const td = await getTrainingDayForDate(db, next);
+    if (td && !td.is_rest_day) {
+      await db.runAsync('INSERT OR REPLACE INTO day_overrides (date, training_day_id) VALUES (?, ?)', [dateStr(date), td.id]);
+      return;
+    }
+  }
 }
 
 export async function resetDayOverride(db, date) {
@@ -415,6 +419,13 @@ export async function getOrCreateSession(db, trainingDayId, dateStr) {
     session = { id: result.lastInsertRowId, training_day_id: trainingDayId, date: dateStr, completed: 0 };
   }
   return session;
+}
+
+export async function getSessionForDate(db, trainingDayId, dateStr) {
+  return db.getFirstAsync(
+    'SELECT * FROM workout_sessions WHERE date = ? AND training_day_id = ?',
+    [dateStr, trainingDayId]
+  );
 }
 
 export async function getSetsForSession(db, sessionId) {

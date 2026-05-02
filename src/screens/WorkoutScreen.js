@@ -7,11 +7,14 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   getTrainingDayForDate, getExercisesForTrainingDay, getOrCreateSession,
-  getSetsForSession, getLastSessionSets, upsertSet, deleteSet,
+  getSessionForDate, getSetsForSession, getLastSessionSets, upsertSet, deleteSet,
   completeSession, skipTrainingDay, anticipateTrainingDay, resetDayOverride,
   getExerciseHistory, todayStr, dateStr,
 } from '../database/db';
 import { COLORS } from '../theme';
+
+const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+const MONTH_NAMES = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
 function suggestProgression(lastSets) {
   if (!lastSets.length) return null;
@@ -132,6 +135,29 @@ function ExerciseCard({ exercise, sets, lastSets, onSetsChange }) {
   );
 }
 
+// Versione read-only per giorni non oggi
+function ExerciseCardReadOnly({ exercise, sets }) {
+  const isBodyweight = exercise.name === 'Plank';
+  return (
+    <View style={styles.exerciseCard}>
+      <Text style={styles.exerciseName}>{exercise.name}</Text>
+      <Text style={styles.exerciseMuscle}>{exercise.muscle_group}</Text>
+      <Text style={styles.exerciseTarget}>
+        Target: {exercise.target_sets}×{exercise.target_reps_min}–{exercise.target_reps_max}
+        {isBodyweight ? 's' : ' reps'}
+        {exercise.suggested_weight > 0 ? `  ·  ${exercise.suggested_weight}kg` : ''}
+      </Text>
+      {sets.length > 0 && (
+        <Text style={styles.lastSession}>
+          {sets.map(s =>
+            s.weight_kg > 0 ? `${s.weight_kg}kg×${s.reps}` : `×${s.reps}`
+          ).join('  ')}
+        </Text>
+      )}
+    </View>
+  );
+}
+
 function ExerciseDetailModal({ exercise, onClose }) {
   const db = useSQLiteContext();
   const [tab, setTab] = useState('instructions');
@@ -213,8 +239,7 @@ function ExerciseDetailModal({ exercise, onClose }) {
 
 export default function WorkoutScreen() {
   const db = useSQLiteContext();
-  const today = new Date();
-  const todayIso = todayStr();
+  const [viewDate, setViewDate] = useState(() => new Date());
 
   const [loading, setLoading] = useState(true);
   const [trainingDay, setTrainingDay] = useState(null);
@@ -227,22 +252,62 @@ export default function WorkoutScreen() {
   const [saving, setSaving] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState(null);
 
+  const todayIso = todayStr();
+
+  function viewIso() { return dateStr(viewDate); }
+
+  function isViewingToday() {
+    return viewIso() === todayIso;
+  }
+
+  function viewDateLabel() {
+    const iso = viewIso();
+    if (iso === todayIso) return 'Oggi';
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (iso === dateStr(yesterday)) return 'Ieri';
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (iso === dateStr(tomorrow)) return 'Domani';
+    return `${DAY_NAMES[viewDate.getDay()]} ${viewDate.getDate()} ${MONTH_NAMES[viewDate.getMonth()]}`;
+  }
+
+  function navigateDay(delta) {
+    setViewDate(prev => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + delta);
+      return d;
+    });
+  }
+
   useFocusEffect(
     useCallback(() => {
-      loadWorkout();
-    }, [])
+      loadWorkout(viewDate);
+    }, [viewDate])
   );
 
-  async function loadWorkout() {
+  async function loadWorkout(date) {
     setLoading(true);
-    const override = await db.getFirstAsync('SELECT * FROM day_overrides WHERE date = ?', [todayIso]);
-    setHasOverride(!!override);
-    setIsSkipped(!!override && override.training_day_id === null);
+    const iso = dateStr(date);
+    const isTodayView = iso === todayIso;
 
-    const td = await getTrainingDayForDate(db, today);
+    if (isTodayView) {
+      const override = await db.getFirstAsync('SELECT * FROM day_overrides WHERE date = ?', [iso]);
+      setHasOverride(!!override);
+      setIsSkipped(!!override && override.training_day_id === null);
+    } else {
+      setHasOverride(false);
+      setIsSkipped(false);
+    }
+
+    const td = await getTrainingDayForDate(db, date);
     setTrainingDay(td);
 
     if (!td || td.is_rest_day) {
+      setExercises([]);
+      setSetsMap({});
+      setSession(null);
+      setLastSets([]);
       setLoading(false);
       return;
     }
@@ -250,71 +315,87 @@ export default function WorkoutScreen() {
     const exs = await getExercisesForTrainingDay(db, td.id);
     setExercises(exs);
 
-    const sess = await getOrCreateSession(db, td.id, todayIso);
-    setSession(sess);
+    if (isTodayView) {
+      const sess = await getOrCreateSession(db, td.id, iso);
+      setSession(sess);
 
-    const [currentSets, prev] = await Promise.all([
-      getSetsForSession(db, sess.id),
-      getLastSessionSets(db, td.id, todayIso),
-    ]);
-    setLastSets(prev);
+      const [currentSets, prev] = await Promise.all([
+        getSetsForSession(db, sess.id),
+        getLastSessionSets(db, td.id, iso),
+      ]);
+      setLastSets(prev);
 
-    const map = {};
-    for (const ex of exs) {
-      const eid = ex.exercise_id;
-      const existing = currentSets.filter(s => s.exercise_id === eid);
-      if (existing.length > 0) {
-        map[eid] = existing.map(s => ({
-          ...s,
-          weight_kg: s.weight_kg?.toString() ?? '',
-          reps: s.reps?.toString() ?? '',
-          rpe: s.rpe?.toString() ?? '',
-        }));
-      } else {
-        const prevEx = prev.filter(s => s.exercise_id === eid);
-        map[eid] = Array.from({ length: ex.target_sets }, (_, i) => ({
-          set_number: i + 1,
-          exercise_id: eid,
-          weight_kg: prevEx[i]?.weight_kg?.toString() ?? '',
-          reps: '',
-          rpe: '',
-        }));
+      const map = {};
+      for (const ex of exs) {
+        const eid = ex.exercise_id;
+        const existing = currentSets.filter(s => s.exercise_id === eid);
+        if (existing.length > 0) {
+          map[eid] = existing.map(s => ({
+            ...s,
+            weight_kg: s.weight_kg?.toString() ?? '',
+            reps: s.reps?.toString() ?? '',
+            rpe: s.rpe?.toString() ?? '',
+          }));
+        } else {
+          const prevEx = prev.filter(s => s.exercise_id === eid);
+          map[eid] = Array.from({ length: ex.target_sets }, (_, i) => ({
+            set_number: i + 1,
+            exercise_id: eid,
+            weight_kg: prevEx[i]?.weight_kg?.toString() ?? '',
+            reps: '',
+            rpe: '',
+          }));
+        }
       }
+      setSetsMap(map);
+    } else {
+      // Modalità lettura: sessione esistente o piano futuro
+      const sess = await getSessionForDate(db, td.id, iso);
+      setSession(sess);
+      setLastSets([]);
+
+      const map = {};
+      if (sess) {
+        const allSets = await getSetsForSession(db, sess.id);
+        for (const ex of exs) {
+          map[ex.exercise_id] = allSets
+            .filter(s => s.exercise_id === ex.exercise_id)
+            .map(s => ({ ...s, weight_kg: s.weight_kg?.toString() ?? '', reps: s.reps?.toString() ?? '' }));
+        }
+      } else {
+        for (const ex of exs) {
+          map[ex.exercise_id] = [];
+        }
+      }
+      setSetsMap(map);
     }
-    setSetsMap(map);
+
     setLoading(false);
   }
 
   async function handleSkip() {
-    Alert.alert('Salta giornata', 'Vuoi saltare l\'allenamento di oggi?', [
+    Alert.alert('Salta giornata', "Vuoi saltare l'allenamento di oggi?", [
       { text: 'Annulla', style: 'cancel' },
       {
-        text: 'Salta',
-        style: 'destructive',
-        onPress: async () => {
-          await skipTrainingDay(db, today);
-          await loadWorkout();
-        },
+        text: 'Salta', style: 'destructive',
+        onPress: async () => { await skipTrainingDay(db, new Date()); await loadWorkout(viewDate); },
       },
     ]);
   }
 
   async function handleAnticipate() {
-    Alert.alert('Anticipa', 'Vuoi caricare l\'allenamento di domani oggi?', [
+    Alert.alert('Anticipa', 'Vuoi caricare il prossimo allenamento oggi?', [
       { text: 'Annulla', style: 'cancel' },
       {
         text: 'Anticipa',
-        onPress: async () => {
-          await anticipateTrainingDay(db, today);
-          await loadWorkout();
-        },
+        onPress: async () => { await anticipateTrainingDay(db, new Date()); await loadWorkout(viewDate); },
       },
     ]);
   }
 
   async function handleReset() {
-    await resetDayOverride(db, today);
-    await loadWorkout();
+    await resetDayOverride(db, new Date());
+    await loadWorkout(viewDate);
   }
 
   async function saveAll() {
@@ -336,9 +417,7 @@ export default function WorkoutScreen() {
           const w = parseFloat(s.weight_kg) || 0;
           const r = parseInt(s.reps) || 0;
           const rpe = s.rpe ? parseFloat(s.rpe) : null;
-          if (r > 0) {
-            await upsertSet(db, session.id, eid, s.set_number, w, r, rpe);
-          }
+          if (r > 0) await upsertSet(db, session.id, eid, s.set_number, w, r, rpe);
         }
       }
     } finally {
@@ -353,10 +432,36 @@ export default function WorkoutScreen() {
     Alert.alert('Ottimo lavoro! 💪', 'Sessione completata e salvata.');
   }
 
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  const viewing = isViewingToday();
+
+  function renderDateNav() {
+    return (
+      <View style={styles.dateNav}>
+        <TouchableOpacity style={styles.dateNavArrow} onPress={() => navigateDay(-1)}>
+          <Text style={styles.dateNavArrowText}>‹</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => setViewDate(new Date())} style={styles.dateNavCenter}>
+          <Text style={styles.dateNavLabel}>{viewDateLabel()}</Text>
+          {!viewing && (
+            <Text style={styles.dateNavSub}>Tocca per tornare ad oggi</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.dateNavArrow} onPress={() => navigateDay(1)}>
+          <Text style={styles.dateNavArrowText}>›</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color={COLORS.accent} />
+        {renderDateNav()}
+        <ActivityIndicator color={COLORS.accent} style={{ marginTop: 40 }} />
       </View>
     );
   }
@@ -364,9 +469,9 @@ export default function WorkoutScreen() {
   if (isSkipped) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.restEmoji}>⏭️</Text>
+        {renderDateNav()}
+        <Text style={[styles.restEmoji, { marginTop: 32 }]}>⏭️</Text>
         <Text style={styles.restTitle}>Giornata saltata</Text>
-        <Text style={styles.restSubtitle}>Hai saltato l'allenamento di oggi.</Text>
         <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
           <Text style={styles.resetBtnText}>Ripristina giornata normale</Text>
         </TouchableOpacity>
@@ -374,29 +479,30 @@ export default function WorkoutScreen() {
     );
   }
 
-  if (!trainingDay) {
+  if (!trainingDay || trainingDay.is_rest_day) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.emptyText}>Nessun allenamento configurato.</Text>
-      </View>
-    );
-  }
-
-  if (trainingDay.is_rest_day) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.restEmoji}>🛋️</Text>
-        <Text style={styles.restTitle}>{trainingDay.name}</Text>
-        <Text style={styles.restSubtitle}>
-          {trainingDay.name === 'Recupero Attivo'
-            ? 'Tapis roulant 20-30 minuti o stretching leggero.'
-            : 'Recupero completo. Il muscolo cresce a riposo.'}
+        {renderDateNav()}
+        <Text style={[styles.restEmoji, { marginTop: 32 }]}>
+          {trainingDay ? '🛋️' : '📅'}
         </Text>
-        <View style={styles.overrideBtns}>
-          <TouchableOpacity style={styles.overrideBtn} onPress={handleAnticipate}>
-            <Text style={styles.overrideBtnText}>Anticipa allenamento</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.restTitle}>
+          {trainingDay ? trainingDay.name : 'Nessun allenamento'}
+        </Text>
+        <Text style={styles.restSubtitle}>
+          {trainingDay?.name === 'Recupero Attivo'
+            ? 'Tapis roulant 20-30 minuti o stretching leggero.'
+            : trainingDay
+            ? 'Recupero completo. Il muscolo cresce a riposo.'
+            : ''}
+        </Text>
+        {viewing && (
+          <View style={styles.overrideBtns}>
+            <TouchableOpacity style={styles.overrideBtn} onPress={handleAnticipate}>
+              <Text style={styles.overrideBtnText}>Anticipa allenamento</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     );
   }
@@ -407,6 +513,8 @@ export default function WorkoutScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        {renderDateNav()}
+
         <View style={styles.header}>
           <Text style={styles.dayName}>{trainingDay.name}</Text>
           {session?.completed === 1 && (
@@ -416,58 +524,84 @@ export default function WorkoutScreen() {
           )}
         </View>
 
-        <View style={styles.overrideBtns}>
-          {hasOverride ? (
-            <TouchableOpacity style={styles.overrideBtn} onPress={handleReset}>
-              <Text style={styles.overrideBtnText}>↩ Ripristina</Text>
-            </TouchableOpacity>
-          ) : (
-            <>
-              <TouchableOpacity style={styles.overrideBtn} onPress={handleSkip}>
-                <Text style={styles.overrideBtnText}>Salta oggi</Text>
+        {viewing && (
+          <View style={styles.overrideBtns}>
+            {hasOverride ? (
+              <TouchableOpacity style={styles.overrideBtn} onPress={handleReset}>
+                <Text style={styles.overrideBtnText}>↩ Ripristina</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.overrideBtn} onPress={handleAnticipate}>
-                <Text style={styles.overrideBtnText}>Anticipa domani</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
+            ) : (
+              <>
+                <TouchableOpacity style={styles.overrideBtn} onPress={handleSkip}>
+                  <Text style={styles.overrideBtnText}>Salta oggi</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.overrideBtn} onPress={handleAnticipate}>
+                  <Text style={styles.overrideBtnText}>Anticipa</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        )}
+
+        {!viewing && !session && (
+          <Text style={styles.readOnlyBadge}>
+            {viewDate > new Date() ? 'Programma previsto' : 'Sessione non registrata'}
+          </Text>
+        )}
 
         {exercises.map(ex => (
-          <TouchableOpacity
-            key={ex.exercise_id}
-            onLongPress={() => setSelectedExercise(ex)}
-            delayLongPress={400}
-            activeOpacity={1}
-          >
-            <ExerciseCard
-              exercise={ex}
-              sets={setsMap[ex.exercise_id] ?? []}
-              lastSets={lastSets}
-              onSetsChange={updated =>
-                setSetsMap(prev => ({ ...prev, [ex.exercise_id]: updated }))
-              }
-            />
-          </TouchableOpacity>
+          viewing ? (
+            <TouchableOpacity
+              key={ex.exercise_id}
+              onLongPress={() => setSelectedExercise(ex)}
+              delayLongPress={400}
+              activeOpacity={1}
+            >
+              <ExerciseCard
+                exercise={ex}
+                sets={setsMap[ex.exercise_id] ?? []}
+                lastSets={lastSets}
+                onSetsChange={updated =>
+                  setSetsMap(prev => ({ ...prev, [ex.exercise_id]: updated }))
+                }
+              />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              key={ex.exercise_id}
+              onLongPress={() => setSelectedExercise(ex)}
+              delayLongPress={400}
+              activeOpacity={1}
+            >
+              <ExerciseCardReadOnly
+                exercise={ex}
+                sets={setsMap[ex.exercise_id] ?? []}
+              />
+            </TouchableOpacity>
+          )
         ))}
 
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.saveBtn, saving && styles.btnDisabled]}
-            onPress={saveAll}
-            disabled={saving}
-          >
-            <Text style={styles.saveBtnText}>{saving ? 'Salvataggio...' : 'Salva progressi'}</Text>
-          </TouchableOpacity>
-
-          {session?.completed !== 1 && (
-            <TouchableOpacity style={styles.completeBtn} onPress={handleComplete}>
-              <Text style={styles.completeBtnText}>Sessione completata ✓</Text>
+        {viewing && (
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={[styles.saveBtn, saving && styles.btnDisabled]}
+              onPress={saveAll}
+              disabled={saving}
+            >
+              <Text style={styles.saveBtnText}>{saving ? 'Salvataggio...' : 'Salva progressi'}</Text>
             </TouchableOpacity>
-          )}
-        </View>
 
-        <Text style={styles.hint}>Tieni premuto un esercizio per istruzioni e storico</Text>
+            {session?.completed !== 1 && (
+              <TouchableOpacity style={styles.completeBtn} onPress={handleComplete}>
+                <Text style={styles.completeBtnText}>Sessione completata ✓</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {viewing && (
+          <Text style={styles.hint}>Tieni premuto un esercizio per istruzioni e storico</Text>
+        )}
       </ScrollView>
 
       {selectedExercise && (
@@ -483,11 +617,30 @@ export default function WorkoutScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   content: { padding: 16, paddingBottom: 40 },
-  centered: { flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  centered: { flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', padding: 16 },
+
+  dateNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  dateNavArrow: { paddingHorizontal: 16, paddingVertical: 4 },
+  dateNavArrowText: { fontSize: 28, color: COLORS.accent, fontWeight: '300' },
+  dateNavCenter: { flex: 1, alignItems: 'center' },
+  dateNavLabel: { fontSize: 16, fontWeight: '700', color: COLORS.text },
+  dateNavSub: { fontSize: 11, color: COLORS.accent, marginTop: 2 },
+
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   dayName: { fontSize: 22, fontWeight: '700', color: COLORS.text },
   completedBadge: { backgroundColor: COLORS.success, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   completedBadgeText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+
+  readOnlyBadge: { color: COLORS.textSecondary, fontSize: 13, marginBottom: 12, fontStyle: 'italic' },
 
   overrideBtns: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   overrideBtn: {
@@ -555,11 +708,9 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.5 },
   hint: { textAlign: 'center', color: COLORS.textSecondary, fontSize: 12, marginTop: 16 },
 
-  emptyText: { color: COLORS.textSecondary, fontSize: 16 },
   restEmoji: { fontSize: 60, marginBottom: 16 },
   restTitle: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
   restSubtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-
   resetBtn: {
     backgroundColor: COLORS.card,
     borderWidth: 1,
