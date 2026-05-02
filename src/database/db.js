@@ -510,6 +510,15 @@ export async function addMeal(db, dateStr, mealType, name, calories, protein, ca
   );
 }
 
+export async function saveToFoodDatabase(db, name, calories, protein, carbs, fats) {
+  const existing = await db.getFirstAsync('SELECT id FROM food_database WHERE name = ?', [name]);
+  if (existing) return;
+  await db.runAsync(
+    'INSERT INTO food_database (name, portion, unit, calories, protein_g, carbs_g, fats_g, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [name, 1, 'porzione', calories, protein, carbs, fats, 'I miei pasti']
+  );
+}
+
 export async function deleteMeal(db, id) {
   await db.runAsync('DELETE FROM nutrition_log WHERE id = ?', [id]);
 }

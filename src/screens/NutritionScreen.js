@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Modal, KeyboardAvoidingView, Platform, Alert, FlatList,
+  StyleSheet, Modal, KeyboardAvoidingView, Platform, Alert, FlatList, Switch,
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
-import { getProfile, getNutritionForDate, addMeal, deleteMeal, searchFoods, todayStr, dateStr } from '../database/db';
+import { getProfile, getNutritionForDate, addMeal, deleteMeal, searchFoods, saveToFoodDatabase, todayStr, dateStr } from '../database/db';
 import { COLORS } from '../theme';
 
 const MEAL_TYPES = ['Colazione', 'Pranzo', 'Cena', 'Spuntino'];
@@ -56,12 +56,14 @@ function AddMealModal({ visible, onClose, onSave }) {
   const [form, setForm] = useState(emptyForm);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [saveToDb, setSaveToDb] = useState(true);
 
   useEffect(() => {
     if (!visible) {
       setForm(emptyForm);
       setSearchQuery('');
       setSearchResults([]);
+      setSaveToDb(true);
     }
   }, [visible]);
 
@@ -92,7 +94,7 @@ function AddMealModal({ visible, onClose, onSave }) {
     setForm(prev => ({ ...prev, [key]: value }));
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.name.trim()) {
       Alert.alert('Nome mancante', 'Inserisci il nome del pasto.');
       return;
@@ -101,7 +103,11 @@ function AddMealModal({ visible, onClose, onSave }) {
     const pro = parseFloat(form.protein) || 0;
     const carb = parseFloat(form.carbs) || 0;
     const fat = parseFloat(form.fats) || 0;
-    onSave(form.mealType, form.name.trim(), cal, pro, carb, fat);
+    const name = form.name.trim();
+    if (saveToDb && cal > 0) {
+      await saveToFoodDatabase(db, name, cal, pro, carb, fat);
+    }
+    onSave(form.mealType, name, cal, pro, carb, fat);
     onClose();
   }
 
@@ -212,6 +218,16 @@ function AddMealModal({ visible, onClose, onSave }) {
                 placeholderTextColor={COLORS.textSecondary}
               />
             </View>
+          </View>
+
+          <View style={styles.saveToDbRow}>
+            <Text style={styles.saveToDbLabel}>Salva nel database per uso futuro</Text>
+            <Switch
+              value={saveToDb}
+              onValueChange={setSaveToDb}
+              trackColor={{ true: COLORS.accent }}
+              thumbColor="#fff"
+            />
           </View>
 
           <View style={styles.modalActions}>
@@ -470,6 +486,12 @@ const styles = StyleSheet.create({
   cancelBtnText: { color: COLORS.textSecondary, fontWeight: '600' },
   confirmBtn: { flex: 2, backgroundColor: COLORS.accent, borderRadius: 12, padding: 13, alignItems: 'center' },
   confirmBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+
+  saveToDbRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: COLORS.border,
+  },
+  saveToDbLabel: { fontSize: 13, color: COLORS.textSecondary, flex: 1, marginRight: 12 },
 
   dateNav: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
