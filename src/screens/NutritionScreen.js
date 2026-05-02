@@ -1,11 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Modal, KeyboardAvoidingView, Platform, Alert,
+  StyleSheet, Modal, KeyboardAvoidingView, Platform, Alert, FlatList,
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
-import { getProfile, getNutritionForDate, addMeal, deleteMeal, todayStr } from '../database/db';
+import { getProfile, getNutritionForDate, addMeal, deleteMeal, searchFoods, todayStr } from '../database/db';
 import { COLORS } from '../theme';
 
 const MEAL_TYPES = ['Colazione', 'Pranzo', 'Cena', 'Spuntino'];
@@ -52,7 +52,41 @@ function MealCard({ meal, onDelete }) {
 const emptyForm = { mealType: 'Pranzo', name: '', calories: '', protein: '', carbs: '', fats: '' };
 
 function AddMealModal({ visible, onClose, onSave }) {
+  const db = useSQLiteContext();
   const [form, setForm] = useState(emptyForm);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+
+  useEffect(() => {
+    if (!visible) {
+      setForm(emptyForm);
+      setSearchQuery('');
+      setSearchResults([]);
+    }
+  }, [visible]);
+
+  async function handleSearch(query) {
+    setSearchQuery(query);
+    if (query.trim().length === 0) {
+      setSearchResults([]);
+      return;
+    }
+    const results = await searchFoods(db, query);
+    setSearchResults(results);
+  }
+
+  function selectFood(food) {
+    setForm(prev => ({
+      ...prev,
+      name: food.name,
+      calories: food.calories_per_serving.toString(),
+      protein: food.protein_g.toString(),
+      carbs: food.carbs_g.toString(),
+      fats: food.fats_g.toString(),
+    }));
+    setSearchQuery('');
+    setSearchResults([]);
+  }
 
   function field(key, value) {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -68,7 +102,6 @@ function AddMealModal({ visible, onClose, onSave }) {
     const carb = parseFloat(form.carbs) || 0;
     const fat = parseFloat(form.fats) || 0;
     onSave(form.mealType, form.name.trim(), cal, pro, carb, fat);
-    setForm(emptyForm);
     onClose();
   }
 
@@ -80,6 +113,36 @@ function AddMealModal({ visible, onClose, onSave }) {
       >
         <View style={styles.modalBox}>
           <Text style={styles.modalTitle}>Aggiungi Pasto</Text>
+
+          {/* Food search */}
+          <Text style={styles.inputLabel}>Cerca nel database</Text>
+          <TextInput
+            style={styles.textInput}
+            value={searchQuery}
+            onChangeText={handleSearch}
+            placeholder="es. riso, pollo, ricotta..."
+            placeholderTextColor={COLORS.textSecondary}
+          />
+          {searchResults.length > 0 && (
+            <View style={styles.searchResults}>
+              <FlatList
+                data={searchResults}
+                keyExtractor={item => item.id.toString()}
+                keyboardShouldPersistTaps="handled"
+                style={{ maxHeight: 180 }}
+                renderItem={({ item }) => (
+                  <TouchableOpacity style={styles.searchResultItem} onPress={() => selectFood(item)}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.searchResultName}>{item.name}</Text>
+                      <Text style={styles.searchResultSub}>{item.serving_description}</Text>
+                    </View>
+                    <Text style={styles.searchResultCal}>{item.calories_per_serving} kcal</Text>
+                  </TouchableOpacity>
+                )}
+                ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: COLORS.border }} />}
+              />
+            </View>
+          )}
 
           <Text style={styles.inputLabel}>Tipo pasto</Text>
           <View style={styles.mealTypeRow}>
@@ -332,6 +395,25 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.border, borderRadius: 10, paddingHorizontal: 12,
     paddingVertical: 10, color: COLORS.text, fontSize: 15,
   },
+
+  searchResults: {
+    backgroundColor: COLORS.bg,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginTop: 4,
+    overflow: 'hidden',
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  searchResultName: { fontSize: 14, color: COLORS.text, fontWeight: '600' },
+  searchResultSub: { fontSize: 11, color: COLORS.textSecondary, marginTop: 1 },
+  searchResultCal: { fontSize: 13, color: COLORS.accent, fontWeight: '700', marginLeft: 8 },
+
   mealTypeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   mealTypeChip: {
     paddingHorizontal: 12, paddingVertical: 6,

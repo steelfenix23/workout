@@ -8,7 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getProfile, updateProfile, todayStr } from '../database/db';
 import {
   requestPermissions, scheduleWorkoutNotifications,
-  scheduleEveningReminder, cancelAllNotifications,
+  scheduleEveningReminder, scheduleWaterReminders, cancelAllNotifications,
 } from '../notifications/scheduler';
 import { COLORS } from '../theme';
 
@@ -123,6 +123,7 @@ export default function SettingsScreen() {
         if (granted) {
           await scheduleWorkoutNotifications(updates.notification_morning_hour, updates.notification_morning_minute);
           await scheduleEveningReminder(updates.notification_evening_hour, updates.notification_evening_minute);
+          await scheduleWaterReminders();
           Alert.alert('Salvato', 'Profilo e notifiche aggiornati.');
         } else {
           Alert.alert('Permessi notifiche', 'Non hai concesso i permessi per le notifiche. Abilitali nelle impostazioni del telefono.');

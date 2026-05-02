@@ -6,12 +6,13 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
   getProfile, getTrainingDayForDate, getNutritionForDate,
-  getWeeklySessions, todayStr, dateStr,
+  getWeeklySessions, getWaterForDate, setWaterGlasses, todayStr, dateStr,
 } from '../database/db';
 import { COLORS, FONTS } from '../theme';
 
 const DAY_LABELS = ['Lu', 'Ma', 'Me', 'Gi', 'Ve', 'Sa', 'Do'];
 const MONTH_NAMES = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+const TOTAL_GLASSES = 12;
 
 function getMondayOfWeek(date) {
   const d = new Date(date);
@@ -56,6 +57,7 @@ export default function HomeScreen() {
   const [todayTraining, setTodayTraining] = useState(null);
   const [nutrition, setNutrition] = useState({ calories: 0, protein: 0, carbs: 0, fats: 0 });
   const [weekSessions, setWeekSessions] = useState([]);
+  const [water, setWater] = useState(0);
 
   const today = new Date();
   const todayIso = todayStr();
@@ -67,13 +69,15 @@ export default function HomeScreen() {
   );
 
   async function loadData() {
-    const [prof, training, meals] = await Promise.all([
+    const [prof, training, meals, glasses] = await Promise.all([
       getProfile(db),
       getTrainingDayForDate(db, today),
       getNutritionForDate(db, todayIso),
+      getWaterForDate(db, todayIso),
     ]);
     setProfile(prof);
     setTodayTraining(training);
+    setWater(glasses);
 
     const totals = meals.reduce(
       (acc, m) => ({
@@ -91,6 +95,12 @@ export default function HomeScreen() {
     sunday.setDate(monday.getDate() + 6);
     const sessions = await getWeeklySessions(db, dateStr(monday), dateStr(sunday));
     setWeekSessions(sessions);
+  }
+
+  async function handleWaterTap(index) {
+    const newCount = index < water ? index : index + 1;
+    setWater(newCount);
+    await setWaterGlasses(db, todayIso, newCount);
   }
 
   function greeting() {
@@ -117,6 +127,9 @@ export default function HomeScreen() {
     return weekSessions.find(s => s.date === iso);
   }
 
+  const waterLiters = (water * 0.25).toFixed(2);
+  const waterPct = water / TOTAL_GLASSES;
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
@@ -142,7 +155,34 @@ export default function HomeScreen() {
             )}
           </>
         ) : (
-          <Text style={styles.restText}>Caricamento...</Text>
+          <Text style={styles.restText}>Nessun allenamento programmato</Text>
+        )}
+      </View>
+
+      {/* Acqua */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>ACQUA OGGI</Text>
+        <View style={styles.waterHeader}>
+          <Text style={styles.waterCount}>{water} / {TOTAL_GLASSES} bicchieri</Text>
+          <Text style={styles.waterLiters}>{waterLiters}L / 3L</Text>
+        </View>
+        <View style={styles.waterBarTrack}>
+          <View style={[styles.waterBarFill, { width: `${waterPct * 100}%` }]} />
+        </View>
+        <View style={styles.glassGrid}>
+          {Array.from({ length: TOTAL_GLASSES }, (_, i) => (
+            <TouchableOpacity
+              key={i}
+              style={[styles.glass, i < water && styles.glassFilled]}
+              onPress={() => handleWaterTap(i)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.glassIcon}>{i < water ? '💧' : '·'}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {water >= TOTAL_GLASSES && (
+          <Text style={styles.waterComplete}>Obiettivo raggiunto! 🎉</Text>
         )}
       </View>
 
@@ -230,7 +270,26 @@ const styles = StyleSheet.create({
   },
   ctaText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
-  // Calorie ring (CSS-only approximation)
+  // Water widget
+  waterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 },
+  waterCount: { fontSize: 16, fontWeight: '700', color: COLORS.text },
+  waterLiters: { fontSize: 13, color: COLORS.textSecondary },
+  waterBarTrack: { height: 4, backgroundColor: COLORS.border, borderRadius: 2, marginBottom: 12 },
+  waterBarFill: { height: 4, backgroundColor: '#4FC3F7', borderRadius: 2 },
+  glassGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  glass: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glassFilled: { backgroundColor: '#1565C0' },
+  glassIcon: { fontSize: 18 },
+  waterComplete: { fontSize: 13, color: COLORS.success, fontWeight: '700', marginTop: 10, textAlign: 'center' },
+
+  // Calorie ring
   ringContainer: { alignItems: 'center', marginBottom: 12 },
   ring: {
     width: 110,

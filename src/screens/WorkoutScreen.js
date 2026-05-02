@@ -1,14 +1,15 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Alert, Modal, KeyboardAvoidingView, Platform,
+  StyleSheet, Alert, Modal, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   getTrainingDayForDate, getExercisesForTrainingDay, getOrCreateSession,
   getSetsForSession, getLastSessionSets, upsertSet, deleteSet,
-  completeSession, todayStr,
+  completeSession, skipTrainingDay, anticipateTrainingDay, resetDayOverride,
+  getExerciseHistory, todayStr, dateStr,
 } from '../database/db';
 import { COLORS } from '../theme';
 
@@ -131,18 +132,80 @@ function ExerciseCard({ exercise, sets, lastSets, onSetsChange }) {
   );
 }
 
-function InstructionsModal({ exercise, onClose }) {
+function ExerciseDetailModal({ exercise, onClose }) {
+  const db = useSQLiteContext();
+  const [tab, setTab] = useState('instructions');
+  const [history, setHistory] = useState([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  async function loadHistory() {
+    if (historyLoaded) return;
+    setHistoryLoading(true);
+    const h = await getExerciseHistory(db, exercise.exercise_id);
+    setHistory(h);
+    setHistoryLoaded(true);
+    setHistoryLoading(false);
+  }
+
+  function switchTab(newTab) {
+    setTab(newTab);
+    if (newTab === 'history') loadHistory();
+  }
+
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
-        <View style={styles.modalBox}>
+        <TouchableOpacity activeOpacity={1} style={styles.modalBox}>
           <Text style={styles.modalTitle}>{exercise.name}</Text>
           <Text style={styles.modalEquipment}>{exercise.equipment}</Text>
-          <Text style={styles.modalInstructions}>{exercise.instructions}</Text>
+
+          <View style={styles.tabRow}>
+            <TouchableOpacity
+              style={[styles.tab, tab === 'instructions' && styles.tabActive]}
+              onPress={() => switchTab('instructions')}
+            >
+              <Text style={[styles.tabText, tab === 'instructions' && styles.tabTextActive]}>
+                Istruzioni
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, tab === 'history' && styles.tabActive]}
+              onPress={() => switchTab('history')}
+            >
+              <Text style={[styles.tabText, tab === 'history' && styles.tabTextActive]}>
+                Storico
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {tab === 'instructions' ? (
+            <Text style={styles.modalInstructions}>{exercise.instructions}</Text>
+          ) : historyLoading ? (
+            <View style={styles.historyCenter}>
+              <ActivityIndicator color={COLORS.accent} />
+            </View>
+          ) : history.length === 0 ? (
+            <Text style={styles.noHistory}>Nessuna sessione registrata.</Text>
+          ) : (
+            <ScrollView style={styles.historyList} nestedScrollEnabled>
+              {history.map((session, i) => (
+                <View key={i} style={styles.historySession}>
+                  <Text style={styles.historyDate}>{session.date}</Text>
+                  <Text style={styles.historySets}>
+                    {session.sets.map(s =>
+                      s.weight_kg > 0 ? `${s.weight_kg}kg×${s.reps}` : `×${s.reps}`
+                    ).join('  ')}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+
           <TouchableOpacity style={styles.modalClose} onPress={onClose}>
             <Text style={styles.modalCloseText}>Chiudi</Text>
           </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
   );
@@ -153,7 +216,10 @@ export default function WorkoutScreen() {
   const today = new Date();
   const todayIso = todayStr();
 
+  const [loading, setLoading] = useState(true);
   const [trainingDay, setTrainingDay] = useState(null);
+  const [isSkipped, setIsSkipped] = useState(false);
+  const [hasOverride, setHasOverride] = useState(false);
   const [exercises, setExercises] = useState([]);
   const [session, setSession] = useState(null);
   const [setsMap, setSetsMap] = useState({});
@@ -168,9 +234,18 @@ export default function WorkoutScreen() {
   );
 
   async function loadWorkout() {
+    setLoading(true);
+    const override = await db.getFirstAsync('SELECT * FROM day_overrides WHERE date = ?', [todayIso]);
+    setHasOverride(!!override);
+    setIsSkipped(!!override && override.training_day_id === null);
+
     const td = await getTrainingDayForDate(db, today);
     setTrainingDay(td);
-    if (!td || td.is_rest_day) return;
+
+    if (!td || td.is_rest_day) {
+      setLoading(false);
+      return;
+    }
 
     const exs = await getExercisesForTrainingDay(db, td.id);
     setExercises(exs);
@@ -184,7 +259,6 @@ export default function WorkoutScreen() {
     ]);
     setLastSets(prev);
 
-    // Build setsMap: { exercise_id: [set, ...] }
     const map = {};
     for (const ex of exs) {
       const eid = ex.exercise_id;
@@ -197,7 +271,6 @@ export default function WorkoutScreen() {
           rpe: s.rpe?.toString() ?? '',
         }));
       } else {
-        // Pre-fill with last session values if available
         const prevEx = prev.filter(s => s.exercise_id === eid);
         map[eid] = Array.from({ length: ex.target_sets }, (_, i) => ({
           set_number: i + 1,
@@ -209,6 +282,39 @@ export default function WorkoutScreen() {
       }
     }
     setSetsMap(map);
+    setLoading(false);
+  }
+
+  async function handleSkip() {
+    Alert.alert('Salta giornata', 'Vuoi saltare l\'allenamento di oggi?', [
+      { text: 'Annulla', style: 'cancel' },
+      {
+        text: 'Salta',
+        style: 'destructive',
+        onPress: async () => {
+          await skipTrainingDay(db, today);
+          await loadWorkout();
+        },
+      },
+    ]);
+  }
+
+  async function handleAnticipate() {
+    Alert.alert('Anticipa', 'Vuoi caricare l\'allenamento di domani oggi?', [
+      { text: 'Annulla', style: 'cancel' },
+      {
+        text: 'Anticipa',
+        onPress: async () => {
+          await anticipateTrainingDay(db, today);
+          await loadWorkout();
+        },
+      },
+    ]);
+  }
+
+  async function handleReset() {
+    await resetDayOverride(db, today);
+    await loadWorkout();
   }
 
   async function saveAll() {
@@ -217,7 +323,6 @@ export default function WorkoutScreen() {
     try {
       for (const [eidStr, sets] of Object.entries(setsMap)) {
         const eid = Number(eidStr);
-        // Delete removed sets first
         const existing = await db.getAllAsync(
           'SELECT set_number FROM workout_sets WHERE session_id = ? AND exercise_id = ?',
           [session.id, eid]
@@ -248,10 +353,31 @@ export default function WorkoutScreen() {
     Alert.alert('Ottimo lavoro! 💪', 'Sessione completata e salvata.');
   }
 
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator color={COLORS.accent} />
+      </View>
+    );
+  }
+
+  if (isSkipped) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.restEmoji}>⏭️</Text>
+        <Text style={styles.restTitle}>Giornata saltata</Text>
+        <Text style={styles.restSubtitle}>Hai saltato l'allenamento di oggi.</Text>
+        <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
+          <Text style={styles.resetBtnText}>Ripristina giornata normale</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   if (!trainingDay) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.emptyText}>Caricamento...</Text>
+        <Text style={styles.emptyText}>Nessun allenamento configurato.</Text>
       </View>
     );
   }
@@ -266,6 +392,11 @@ export default function WorkoutScreen() {
             ? 'Tapis roulant 20-30 minuti o stretching leggero.'
             : 'Recupero completo. Il muscolo cresce a riposo.'}
         </Text>
+        <View style={styles.overrideBtns}>
+          <TouchableOpacity style={styles.overrideBtn} onPress={handleAnticipate}>
+            <Text style={styles.overrideBtnText}>Anticipa allenamento</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -282,6 +413,23 @@ export default function WorkoutScreen() {
             <View style={styles.completedBadge}>
               <Text style={styles.completedBadgeText}>✓ Completato</Text>
             </View>
+          )}
+        </View>
+
+        <View style={styles.overrideBtns}>
+          {hasOverride ? (
+            <TouchableOpacity style={styles.overrideBtn} onPress={handleReset}>
+              <Text style={styles.overrideBtnText}>↩ Ripristina</Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              <TouchableOpacity style={styles.overrideBtn} onPress={handleSkip}>
+                <Text style={styles.overrideBtnText}>Salta oggi</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.overrideBtn} onPress={handleAnticipate}>
+                <Text style={styles.overrideBtnText}>Anticipa domani</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
 
@@ -319,11 +467,11 @@ export default function WorkoutScreen() {
           )}
         </View>
 
-        <Text style={styles.hint}>Tieni premuto un esercizio per le istruzioni</Text>
+        <Text style={styles.hint}>Tieni premuto un esercizio per istruzioni e storico</Text>
       </ScrollView>
 
       {selectedExercise && (
-        <InstructionsModal
+        <ExerciseDetailModal
           exercise={selectedExercise}
           onClose={() => setSelectedExercise(null)}
         />
@@ -336,10 +484,21 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   content: { padding: 16, paddingBottom: 40 },
   centered: { flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   dayName: { fontSize: 22, fontWeight: '700', color: COLORS.text },
   completedBadge: { backgroundColor: COLORS.success, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   completedBadgeText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+
+  overrideBtns: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  overrideBtn: {
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  overrideBtnText: { color: COLORS.textSecondary, fontSize: 13, fontWeight: '600' },
 
   exerciseCard: {
     backgroundColor: COLORS.card,
@@ -399,13 +558,42 @@ const styles = StyleSheet.create({
   emptyText: { color: COLORS.textSecondary, fontSize: 16 },
   restEmoji: { fontSize: 60, marginBottom: 16 },
   restTitle: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
-  restSubtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20 },
+  restSubtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+
+  resetBtn: {
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  resetBtnText: { color: COLORS.textSecondary, fontWeight: '600' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 24 },
-  modalBox: { backgroundColor: COLORS.card, borderRadius: 16, padding: 20 },
+  modalBox: { backgroundColor: COLORS.card, borderRadius: 16, padding: 20, maxHeight: '80%' },
   modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
   modalEquipment: { fontSize: 12, color: COLORS.accent, marginBottom: 12 },
+
+  tabRow: { flexDirection: 'row', marginBottom: 16, borderRadius: 8, overflow: 'hidden', backgroundColor: COLORS.border },
+  tab: { flex: 1, paddingVertical: 8, alignItems: 'center' },
+  tabActive: { backgroundColor: COLORS.accent },
+  tabText: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
+  tabTextActive: { color: '#fff' },
+
   modalInstructions: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 22, marginBottom: 20 },
-  modalClose: { backgroundColor: COLORS.accent, borderRadius: 10, padding: 12, alignItems: 'center' },
+  modalClose: { backgroundColor: COLORS.accent, borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 8 },
   modalCloseText: { color: '#fff', fontWeight: '700' },
+
+  historyCenter: { alignItems: 'center', paddingVertical: 24 },
+  historyList: { maxHeight: 260, marginBottom: 8 },
+  historySession: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  historyDate: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
+  historySets: { fontSize: 13, color: COLORS.textSecondary },
+  noHistory: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', paddingVertical: 24, marginBottom: 8 },
 });

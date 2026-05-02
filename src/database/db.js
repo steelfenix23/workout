@@ -12,6 +12,7 @@ export async function initDatabase(db) {
       target_protein INTEGER DEFAULT 155,
       target_carbs INTEGER DEFAULT 380,
       target_fats INTEGER DEFAULT 85,
+      water_goal_bottles REAL DEFAULT 2,
       notification_morning_hour INTEGER DEFAULT 8,
       notification_morning_minute INTEGER DEFAULT 0,
       notification_evening_hour INTEGER DEFAULT 20,
@@ -42,6 +43,7 @@ export async function initDatabase(db) {
       target_sets INTEGER DEFAULT 3,
       target_reps_min INTEGER DEFAULT 8,
       target_reps_max INTEGER DEFAULT 12,
+      suggested_weight REAL DEFAULT 0,
       FOREIGN KEY (training_day_id) REFERENCES training_days(id),
       FOREIGN KEY (exercise_id) REFERENCES exercises(id)
     );
@@ -77,6 +79,29 @@ export async function initDatabase(db) {
       fats_g REAL DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS food_database (
+      id INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      portion REAL NOT NULL,
+      unit TEXT DEFAULT 'g',
+      calories INTEGER DEFAULT 0,
+      protein_g REAL DEFAULT 0,
+      carbs_g REAL DEFAULT 0,
+      fats_g REAL DEFAULT 0,
+      category TEXT DEFAULT 'Altro'
+    );
+
+    CREATE TABLE IF NOT EXISTS water_log (
+      id INTEGER PRIMARY KEY,
+      date TEXT NOT NULL,
+      glasses INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS day_overrides (
+      date TEXT PRIMARY KEY,
+      training_day_id INTEGER
+    );
+
     CREATE TABLE IF NOT EXISTS weight_log (
       id INTEGER PRIMARY KEY,
       date TEXT NOT NULL,
@@ -89,21 +114,32 @@ export async function initDatabase(db) {
     );
   `);
 
-  const meta = await db.getFirstAsync('SELECT value FROM app_meta WHERE key = ?', ['seeded']);
-  if (!meta) {
+  const version = await db.getFirstAsync("SELECT value FROM app_meta WHERE key = 'seed_version'");
+  const currentVersion = version ? parseInt(version.value) : 0;
+
+  if (currentVersion < 2) {
+    await db.execAsync(`
+      DELETE FROM training_day_exercises;
+      DELETE FROM exercises;
+      DELETE FROM training_days;
+      DELETE FROM food_database;
+    `);
     await seedDatabase(db);
-    await db.runAsync("INSERT INTO app_meta (key, value) VALUES ('seeded', '1')");
+    await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seed_version', '2')");
+    await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seeded', '1')");
+  }
+
+  const profileExists = await db.getFirstAsync('SELECT id FROM profile WHERE id = 1');
+  if (!profileExists) {
+    await db.runAsync(
+      `INSERT INTO profile (id, weight_kg, height_cm, age, target_calories, target_protein, target_carbs, target_fats, water_goal_bottles)
+       VALUES (1, 74, 185, 28, 3200, 155, 380, 85, 2)`
+    );
   }
 }
 
 async function seedDatabase(db) {
-  // Profile defaults (74kg, 185cm, bulk target)
-  await db.runAsync(
-    `INSERT OR IGNORE INTO profile (id, weight_kg, height_cm, age, target_calories, target_protein, target_carbs, target_fats)
-     VALUES (1, 74, 185, 28, 3200, 155, 380, 85)`
-  );
-
-  // Training plan: Mon-Thu active, Fri optional rest, Sat-Sun rest
+  // Training days
   const trainingDays = [
     [0, 'Petto + Tricipiti', 0],
     [1, 'Schiena + Bicipiti', 0],
@@ -114,42 +150,82 @@ async function seedDatabase(db) {
     [6, 'Riposo', 1],
   ];
   for (const [dow, name, rest] of trainingDays) {
-    await db.runAsync(
-      'INSERT INTO training_days (day_of_week, name, is_rest_day) VALUES (?, ?, ?)',
-      [dow, name, rest]
-    );
+    await db.runAsync('INSERT INTO training_days (day_of_week, name, is_rest_day) VALUES (?, ?, ?)', [dow, name, rest]);
   }
 
-  // Exercise library
+  // Exercises with Italian descriptions
   const exercises = [
-    // Petto
-    ['Piegamenti con Zavorra', 'Petto', 'Giubbotto zavorra', 'Posizione push-up, mani larghezza spalle. Petto al suolo, spingi su mantenendo il core compatto.'],
-    ['DB Floor Press', 'Petto', 'Manubri', 'Sdraiato a terra, manubri all\'altezza del petto. Spingi verso l\'alto, abbassa finché i gomiti toccano terra.'],
-    ['Dips con Zavorra', 'Petto/Tricipiti', 'Parallele + Giubbotto zavorra', 'Alle parallele, busto leggermente inclinato in avanti per coinvolgere il petto. Scendi finché le spalle sono sotto i gomiti.'],
-    // Tricipiti
-    ['DB Overhead Tricep Extension', 'Tricipiti', 'Manubrio', 'In piedi o seduto, manubrio con entrambe le mani sopra la testa. Piega i gomiti portando il peso dietro la nuca, spingi su.'],
-    ['DB Tricep Kickback', 'Tricipiti', 'Manubri', 'Busto parallelo al suolo, gomito a 90°. Estendi il braccio dietro fino a bloccarlo, poi ritorna lentamente.'],
-    // Schiena
-    ['Trazioni con Zavorra', 'Schiena', 'Sbarra + Giubbotto zavorra', 'Presa prona leggermente più larga delle spalle. Tira il petto verso la sbarra, scendi lentamente con controllo.'],
-    ['DB Bent-Over Row', 'Schiena', 'Manubri', 'Busto inclinato a 45°, schiena dritta. Tira i manubri verso i fianchi, gomiti stretti al corpo. Spingi le scapole insieme in cima.'],
-    ['DB Single-Arm Row', 'Schiena', 'Manubrio', 'Un ginocchio e una mano su una superficie stabile. Tira il manubrio verso il fianco, ruota leggermente il busto in cima.'],
-    // Bicipiti
-    ['DB Bicep Curl', 'Bicipiti', 'Manubri', 'In piedi, gomiti fermi ai fianchi. Porta i manubri verso le spalle contraendo i bicipiti, scendi lentamente.'],
-    ['DB Hammer Curl', 'Bicipiti', 'Manubri', 'Come il curl ma con presa neutra (pollice in alto). Lavora brachiale e brachioradiale oltre al bicipite.'],
-    // Spalle
-    ['DB Overhead Press', 'Spalle', 'Manubri', 'In piedi o seduto, manubri all\'altezza delle orecchie. Spingi verso l\'alto fino a quasi bloccare i gomiti, scendi controllato.'],
-    ['DB Lateral Raise', 'Spalle', 'Manubri', 'In piedi, leggera inclinazione in avanti. Alza le braccia di lato fino all\'altezza delle spalle, pollice leggermente verso il basso.'],
-    ['DB Rear Delt Flye', 'Spalle', 'Manubri', 'Busto parallelo al suolo. Alza le braccia di lato con gomiti leggermente piegati, squeeze delle scapole in cima.'],
-    // Core
-    ['Hanging Leg Raise', 'Core', 'Sbarra', 'Appeso alla sbarra. Solleva le gambe tese (o piegate) fino all\'altezza dei fianchi o superiore. Scendi lentamente senza oscillare.'],
-    ['DB Russian Twist', 'Core', 'Manubrio', 'Seduto a terra, gambe sollevate. Ruota il busto portando il manubrio da un lato all\'altro.'],
-    ['Plank', 'Core', 'Nessuno', 'Avambracci a terra, corpo in linea retta. Mantieni la posizione contraendo addome e glutei.'],
-    // Gambe
-    ['DB Goblet Squat', 'Gambe', 'Manubrio', 'Tieni un manubrio verticale al petto. Piedi larghezza spalle, punta dei piedi leggermente verso fuori. Scendi fino a che le cosce siano parallele al suolo.'],
-    ['DB Romanian Deadlift', 'Gambe', 'Manubri', 'In piedi, manubri davanti alle cosce. Cala i manubri lungo le gambe mantenendo schiena dritta e ginocchia leggermente piegate, senti lo stretch nei femorali.'],
-    ['DB Walking Lunge', 'Gambe', 'Manubri', 'Fai un passo lungo in avanti, abbassa il ginocchio posteriore quasi al suolo. Alterna le gambe avanzando.'],
-    ['DB Single-Leg Romanian Deadlift', 'Gambe', 'Manubrio', 'In piedi su una gamba, manubrio nella mano opposta. Inclina il busto in avanti alzando la gamba libera dietro. Ottimo per equilibrio e femorali.'],
-    ['Calf Raise', 'Gambe', 'Manubri', 'In piedi su un gradino o piano, manubri ai lati. Alza i talloni il più possibile, abbassa lentamente sotto il livello del gradino per lo stretch.'],
+    // PETTO
+    [
+      'Panca Piana con Manubri', 'Petto', 'Manubri',
+      'Sdraiati a terra (o su una panca), un manubrio per mano all\'altezza del petto con i gomiti a 90°. Spingi i manubri verso l\'alto fino a quasi bloccare le braccia, poi scendi lentamente. Senti la contrazione al centro del petto in cima al movimento.'
+    ],
+    [
+      'Panca Inclinata 30° - Spinte', 'Petto (alto)', 'Manubri',
+      'Sdraiati su una superficie inclinata a circa 30° (puoi usare cuscini o il bordo del letto). Parti con i manubri all\'altezza delle spalle e spingi verso l\'alto. L\'inclinazione sposta il lavoro sulla parte alta del petto, zona difficile da sviluppare.'
+    ],
+    [
+      'Panca Inclinata 30° - Croci', 'Petto (alto)', 'Manubri',
+      'Stesso setup inclinato a 30°. Parti con le braccia tese sopra il petto, poi apri lentamente le braccia di lato ad arco (come abbracciare un albero grande) fino a sentire lo stretch nel petto. Richiudi seguendo lo stesso arco. Usa un peso più basso delle spinte — qui conta la tecnica, non il carico.'
+    ],
+    // TRICIPITI
+    [
+      'Dips alle Parallele', 'Tricipiti / Petto basso', 'Parallele',
+      'Appoggiati sulle parallele con le braccia tese e il corpo verticale. Piega i gomiti abbassando il corpo finché le spalle scendono sotto il livello dei gomiti, poi spingi su. Tieni il busto verticale per isolare i tricipiti. Aggiungi il giubbotto zavorra quando riesci a fare 12+ reps con facilità.'
+    ],
+    // SCHIENA
+    [
+      'Trazioni alla Sbarra', 'Schiena larga (Lat)', 'Sbarra',
+      'Appeso alla sbarra con presa più larga delle spalle (palmi verso avanti). Tira il corpo verso l\'alto portando il mento sopra la sbarra, stringendo le scapole insieme. Scendi lentamente in 2-3 secondi — la discesa controllata è fondamentale per la crescita muscolare. Aggiungi il giubbotto quando superi 8 reps consecutive.'
+    ],
+    [
+      'Rematore con Manubri', 'Schiena (medio-alta)', 'Manubri',
+      'In piedi, inclina il busto a 45° con la schiena dritta e le ginocchia leggermente piegate. Tieni un manubrio per mano con le braccia tese verso il basso. Tira i manubri verso i fianchi, stringendo le scapole insieme in cima. Abbassa lentamente. Non oscillare con il busto.'
+    ],
+    // BICIPITI
+    [
+      'Curl Classico con Manubri', 'Bicipiti', 'Manubri',
+      'In piedi, gomiti fermi ai fianchi (non spostarli durante il movimento). Porta i manubri verso le spalle ruotando il polso (supinazione — il pollice verso l\'esterno in cima). Contrai il bicipite in cima e scendi lentamente. Evita di usare lo slancio del busto.'
+    ],
+    [
+      'Curl a Martello', 'Bicipiti / Brachiale', 'Manubri',
+      'Come il curl classico ma con presa neutra: il pollice punta verso l\'alto per tutto il movimento, non ruotare il polso. Questo variante lavora anche il brachiale (sotto il bicipite) e il brachioradiale (avambraccio), dando spessore al braccio visto di lato.'
+    ],
+    // SPALLE
+    [
+      'Shoulder Press con Manubri', 'Spalle (deltoide)', 'Manubri',
+      'In piedi o seduto, porta i manubri all\'altezza delle orecchie con i gomiti a 90°. Spingi verso l\'alto fino a quasi toccare i manubri sopra la testa, poi scendi controllato. Lavora tutto il deltoide (anteriore, laterale) e i tricipiti come muscolo ausiliario.'
+    ],
+    [
+      'Alzate Laterali', 'Spalle (deltoide laterale)', 'Manubri',
+      'In piedi con i manubri ai fianchi. Alza le braccia di lato fino all\'altezza delle spalle, con i gomiti leggermente piegati e il pollice leggermente verso il basso. Non usare slancio. Questo esercizio è fondamentale per la larghezza delle spalle — usa un peso leggero e fai le reps lentamente.'
+    ],
+    [
+      'Alzate Frontali', 'Spalle (deltoide anteriore)', 'Manubri',
+      'In piedi con i manubri davanti alle cosce. Alza le braccia davanti a te fino all\'altezza delle spalle (non oltre), poi abbassa lentamente. Lavora la parte frontale della spalla. Se hai già fatto bene la shoulder press, questo esercizio richiede poco peso.'
+    ],
+    // CORE
+    [
+      'Crunch', 'Core (addome)', 'Nessuno',
+      'Sdraiati a terra con le ginocchia piegate e i piedi piatti. Metti le mani dietro la testa senza tirare il collo. Contrai l\'addome portando le spalle e la parte alta della schiena verso le ginocchia — non fare un sit-up completo, basta sollevare le spalle da terra. Tieni la contrazione 1 secondo in cima.'
+    ],
+    [
+      'Plank', 'Core (stabilità)', 'Nessuno',
+      'Appoggiati sugli avambracci e le punte dei piedi, corpo in linea retta dalla testa ai talloni. Contrai l\'addome e i glutei. Non far cedere i fianchi verso il basso né alzarli troppo. Respira normalmente. I secondi indicati sono il tempo da mantenere la posizione.'
+    ],
+    // GAMBE
+    [
+      'Goblet Squat', 'Gambe (quadricipiti / glutei)', 'Manubrio',
+      'Tieni un manubrio verticale con entrambe le mani al petto (come un calice). Piedi larghezza spalle, punte leggermente verso fuori. Scendi lentamente piegando le ginocchia fino a che le cosce siano parallele al suolo (o più in basso se ci riesci), poi risali. Tieni il busto eretto e le ginocchia allineate con le punte dei piedi.'
+    ],
+    [
+      'Affondi con Manubri', 'Gambe (quadricipiti / glutei)', 'Manubri',
+      'In piedi con un manubrio per mano ai fianchi. Fai un passo lungo in avanti, abbassa il ginocchio posteriore quasi al suolo (senza toccarlo), poi spingi con il piede anteriore per tornare in piedi. Alterna le gambe. Mantieni il busto eretto durante tutto il movimento.'
+    ],
+    [
+      'Calf Raise', 'Gambe (polpacci)', 'Manubri (opzionale)',
+      'In piedi sul bordo di un gradino o rialzo con i talloni fuori dal bordo. Alzati sulle punte il più possibile, poi scendi lentamente fino a sentire lo stretch nel polpaccio (talloni sotto il livello del gradino). Puoi tenere un manubrio per mano per aggiungere resistenza quando diventa troppo facile.'
+    ],
   ];
 
   for (const [name, muscle, equipment, instructions] of exercises) {
@@ -159,44 +235,112 @@ async function seedDatabase(db) {
     );
   }
 
-  // Link exercises to training days
-  // Day 1 (id=1): Petto + Tricipiti — exercise IDs: 1,2,3,4
+  // Training day exercises [tdId, exId, order, sets, repsMin, repsMax, suggestedWeight]
+  // IDs: 1=PancaPiana, 2=InclinataSp, 3=InclCroci, 4=Dips, 5=Trazioni, 6=Rematore,
+  //      7=CurlClass, 8=CurlMart, 9=ShoulderPress, 10=AlzateLat, 11=AlzateFront,
+  //      12=Crunch, 13=Plank, 14=GobletSquat, 15=Affondi, 16=CalfRaise
+
   const plan = [
-    // [training_day_id, exercise_id, order, sets, reps_min, reps_max]
-    [1, 1, 1, 4, 8, 15],   // Piegamenti con Zavorra
-    [1, 2, 2, 3, 10, 15],  // DB Floor Press
-    [1, 3, 3, 4, 8, 12],   // Dips con Zavorra
-    [1, 4, 4, 3, 10, 15],  // DB Overhead Tricep Extension
+    // Lunedì: Petto + Tricipiti
+    [1, 1, 1, 4, 10, 10, 18],   // Panca Piana 4×10 18kg
+    [1, 2, 2, 3, 10, 10, 14.5], // Inclinata Spinte 3×10 14.5kg
+    [1, 3, 3, 3, 12, 12, 8.5],  // Inclinata Croci 3×12 8.5kg
+    [1, 4, 4, 3, 8, 12, 0],     // Dips 3×max bw
 
-    [2, 6, 1, 4, 5, 10],   // Trazioni con Zavorra
-    [2, 7, 2, 4, 10, 12],  // DB Bent-Over Row
-    [2, 8, 3, 3, 10, 12],  // DB Single-Arm Row
-    [2, 10, 4, 3, 10, 15], // DB Hammer Curl
+    // Martedì: Schiena + Bicipiti
+    [2, 5, 1, 4, 5, 8, 0],      // Trazioni 4×max bw
+    [2, 6, 2, 4, 10, 10, 14.5], // Rematore 4×10 14.5kg
+    [2, 7, 3, 3, 10, 10, 12],   // Curl Classico 3×10 12kg
+    [2, 8, 4, 3, 10, 10, 12],   // Curl Martello 3×10 12kg
 
-    [3, 11, 1, 4, 8, 12],  // DB Overhead Press
-    [3, 12, 2, 3, 12, 15], // DB Lateral Raise
-    [3, 13, 3, 3, 12, 15], // DB Rear Delt Flye
-    [3, 14, 4, 3, 10, 15], // Hanging Leg Raise
-    [3, 16, 5, 3, 30, 60], // Plank (reps = secondi)
+    // Mercoledì: Spalle + Core
+    [3, 9, 1, 4, 10, 10, 12],   // Shoulder Press 4×10 12kg
+    [3, 10, 2, 3, 15, 15, 6],   // Alzate Laterali 3×15 6kg
+    [3, 11, 3, 3, 12, 12, 7],   // Alzate Frontali 3×12 7kg
+    [3, 12, 4, 3, 15, 20, 0],   // Crunch 3×15-20 bw
+    [3, 13, 5, 3, 30, 45, 0],   // Plank 3×30-45s bw
 
-    [4, 17, 1, 4, 10, 15], // DB Goblet Squat
-    [4, 18, 2, 4, 10, 12], // DB Romanian Deadlift
-    [4, 19, 3, 3, 10, 12], // DB Walking Lunge
-    [4, 20, 4, 3, 10, 10], // DB Single-Leg Romanian Deadlift
-    [4, 21, 5, 3, 15, 25], // Calf Raise
+    // Giovedì: Gambe
+    [4, 14, 1, 3, 12, 12, 10],  // Goblet Squat 3×12 10kg
+    [4, 15, 2, 3, 10, 10, 8],   // Affondi 3×10 per lato 8kg
+    [4, 16, 3, 3, 20, 20, 0],   // Calf Raise 3×20 bw
   ];
 
-  for (const [tdId, exId, ord, sets, rMin, rMax] of plan) {
+  for (const [tdId, exId, ord, sets, rMin, rMax, sugW] of plan) {
     await db.runAsync(
       `INSERT INTO training_day_exercises
-       (training_day_id, exercise_id, order_index, target_sets, target_reps_min, target_reps_max)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [tdId, exId, ord, sets, rMin, rMax]
+       (training_day_id, exercise_id, order_index, target_sets, target_reps_min, target_reps_max, suggested_weight)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [tdId, exId, ord, sets, rMin, rMax, sugW]
+    );
+  }
+
+  // Food database
+  const foods = [
+    // [name, portion, unit, calories, protein, carbs, fats, category]
+    // COLAZIONE
+    ['Latte intero', 150, 'ml', 97, 5, 7, 5, 'Colazione'],
+    ['Caffè espresso', 30, 'ml', 2, 0.1, 0.3, 0, 'Colazione'],
+    ['Biscotti (2 pezzi)', 20, 'g', 90, 1, 13, 4, 'Colazione'],
+    ['Farina di avena', 50, 'g', 185, 7, 31, 4, 'Colazione'],
+    ['Yogurt greco (metà)', 75, 'g', 65, 9, 4, 2, 'Latticini'],
+    ['Yogurt greco (intero)', 150, 'g', 130, 18, 8, 3, 'Latticini'],
+    ['Taralli', 40, 'g', 175, 5, 26, 6, 'Snack'],
+    ['Corn Flakes', 30, 'g', 113, 2, 26, 0.3, 'Cereali'],
+    // PANE
+    ['Pane bianco (1 fetta)', 50, 'g', 130, 4, 25, 1, 'Pane'],
+    ['Pane bianco (2 fette)', 100, 'g', 265, 9, 52, 1, 'Pane'],
+    // UOVA
+    ['Uova (1 uovo)', 60, 'g', 85, 7, 0.5, 6, 'Uova'],
+    ['Uova (2 uova)', 120, 'g', 170, 14, 1, 12, 'Uova'],
+    ['Uova (4 uova)', 240, 'g', 340, 28, 2, 24, 'Uova'],
+    // AFFETTATI
+    ['Fesa di tacchino', 100, 'g', 107, 22, 1, 2, 'Affettati'],
+    // CEREALI
+    ['Riso bianco (crudo)', 120, 'g', 432, 9, 95, 1, 'Cereali'],
+    ['Pasta (cruda)', 120, 'g', 428, 15, 86, 2, 'Cereali'],
+    // PESCE
+    ['Tonno sott\'olio sgocciolato (1 scatola 80g)', 80, 'g', 170, 21, 0, 9, 'Pesce'],
+    ['Tonno sott\'olio sgocciolato (2 scatole)', 160, 'g', 340, 42, 0, 18, 'Pesce'],
+    // CARNE
+    ['Hamburger macinato manzo (100g)', 100, 'g', 250, 20, 0, 18, 'Carne'],
+    ['Hamburger macinato manzo (200g)', 200, 'g', 500, 40, 0, 36, 'Carne'],
+    ['Petto di pollo', 250, 'g', 298, 56, 0, 7, 'Carne'],
+    ['Scaloppine di lonza', 200, 'g', 280, 42, 0, 12, 'Carne'],
+    // LATTICINI
+    ['Mozzarella di bufala (1 pezzo 80g)', 80, 'g', 195, 11, 1, 16, 'Latticini'],
+    ['Mozzarella di bufala (2 pezzi)', 160, 'g', 390, 22, 2, 32, 'Latticini'],
+    // VERDURE
+    ['Lattuga', 100, 'g', 15, 1.3, 2, 0.2, 'Verdure'],
+    ['Zucchine', 150, 'g', 25, 2, 4, 0.3, 'Verdure'],
+    ['Carciofi', 150, 'g', 70, 5, 10, 0.3, 'Verdure'],
+    ['Rucola', 100, 'g', 25, 2.6, 2, 0.7, 'Verdure'],
+    ['Pomodori', 150, 'g', 27, 1.3, 5, 0.3, 'Verdure'],
+    ['Pomodorini', 100, 'g', 20, 1, 4, 0.2, 'Verdure'],
+    ['Melanzane grigliate', 150, 'g', 45, 1.5, 8, 1, 'Verdure'],
+    ['Zucca', 150, 'g', 45, 1.5, 10, 0.2, 'Verdure'],
+    // CONDIMENTI
+    ['Pesto di rucola', 30, 'g', 110, 2, 2, 11, 'Condimenti'],
+    ['Sugo al pomodoro', 100, 'g', 45, 1.5, 8, 1, 'Condimenti'],
+    ['Besciamella', 50, 'g', 75, 2, 5, 5, 'Condimenti'],
+    ['Olive', 30, 'g', 60, 0.5, 1, 6, 'Condimenti'],
+    // PASTI COMPLETI
+    ['Riso tonno olive pomodorini (piatto completo)', 1, 'porzione', 852, 52, 102, 20, 'Pasti completi'],
+    ['Lasagna (porzione)', 1, 'porzione', 815, 37, 62, 43, 'Pasti completi'],
+    ['Pancake proteici avena + yogurt greco', 1, 'porzione', 250, 16, 35, 6, 'Pasti completi'],
+    ['Frittatina 2 uova + pane', 1, 'porzione', 300, 18, 26, 13, 'Pasti completi'],
+    ['Fesa tacchino + pane', 1, 'porzione', 237, 26, 26, 3, 'Pasti completi'],
+  ];
+
+  for (const [name, portion, unit, cal, pro, carb, fat, cat] of foods) {
+    await db.runAsync(
+      'INSERT INTO food_database (name, portion, unit, calories, protein_g, carbs_g, fats_g, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, portion, unit, cal, pro, carb, fat, cat]
     );
   }
 }
 
-// ─── Query helpers ────────────────────────────────────────────────────────────
+// ─── Training Day Helpers ─────────────────────────────────────────────────────
 
 export async function getProfile(db) {
   return db.getFirstAsync('SELECT * FROM profile WHERE id = 1');
@@ -205,14 +349,36 @@ export async function getProfile(db) {
 export async function updateProfile(db, fields) {
   const keys = Object.keys(fields);
   const sets = keys.map(k => `${k} = ?`).join(', ');
-  const vals = keys.map(k => fields[k]);
-  await db.runAsync(`UPDATE profile SET ${sets} WHERE id = 1`, vals);
+  await db.runAsync(`UPDATE profile SET ${sets} WHERE id = 1`, keys.map(k => fields[k]));
 }
 
 export async function getTrainingDayForDate(db, date) {
-  // date is a JS Date object; day_of_week: 0=Mon … 6=Sun
+  const iso = dateStr(date);
+  const override = await db.getFirstAsync('SELECT * FROM day_overrides WHERE date = ?', [iso]);
+  if (override) {
+    if (override.training_day_id === null) return null;
+    return db.getFirstAsync('SELECT * FROM training_days WHERE id = ?', [override.training_day_id]);
+  }
   const dow = (date.getDay() + 6) % 7;
   return db.getFirstAsync('SELECT * FROM training_days WHERE day_of_week = ?', [dow]);
+}
+
+export async function skipTrainingDay(db, date) {
+  const iso = dateStr(date);
+  await db.runAsync('INSERT OR REPLACE INTO day_overrides (date, training_day_id) VALUES (?, NULL)', [iso]);
+}
+
+export async function anticipateTrainingDay(db, date) {
+  const tomorrow = new Date(date);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowDay = await getTrainingDayForDate(db, tomorrow);
+  if (!tomorrowDay) return;
+  const iso = dateStr(date);
+  await db.runAsync('INSERT OR REPLACE INTO day_overrides (date, training_day_id) VALUES (?, ?)', [iso, tomorrowDay.id]);
+}
+
+export async function resetDayOverride(db, date) {
+  await db.runAsync('DELETE FROM day_overrides WHERE date = ?', [dateStr(date)]);
 }
 
 export async function getExercisesForTrainingDay(db, trainingDayId) {
@@ -250,16 +416,32 @@ export async function getSetsForSession(db, sessionId) {
 
 export async function getLastSessionSets(db, trainingDayId, currentDate) {
   const lastSession = await db.getFirstAsync(
-    `SELECT * FROM workout_sessions
-     WHERE training_day_id = ? AND date < ? AND completed = 1
+    `SELECT * FROM workout_sessions WHERE training_day_id = ? AND date < ? AND completed = 1
      ORDER BY date DESC LIMIT 1`,
     [trainingDayId, currentDate]
   );
   if (!lastSession) return [];
-  return db.getAllAsync(
-    'SELECT * FROM workout_sets WHERE session_id = ?',
-    [lastSession.id]
+  return db.getAllAsync('SELECT * FROM workout_sets WHERE session_id = ?', [lastSession.id]);
+}
+
+export async function getExerciseHistory(db, exerciseId, limit = 8) {
+  const sessions = await db.getAllAsync(
+    `SELECT DISTINCT ws.date, ws.id as session_id
+     FROM workout_sessions ws
+     JOIN workout_sets wset ON wset.session_id = ws.id
+     WHERE wset.exercise_id = ? AND ws.completed = 1
+     ORDER BY ws.date DESC LIMIT ?`,
+    [exerciseId, limit]
   );
+  const result = [];
+  for (const s of sessions) {
+    const sets = await db.getAllAsync(
+      'SELECT * FROM workout_sets WHERE session_id = ? AND exercise_id = ? ORDER BY set_number',
+      [s.session_id, exerciseId]
+    );
+    result.push({ date: s.date, sets });
+  }
+  return result;
 }
 
 export async function upsertSet(db, sessionId, exerciseId, setNumber, weightKg, reps, rpe) {
@@ -291,11 +473,10 @@ export async function completeSession(db, sessionId) {
   await db.runAsync('UPDATE workout_sessions SET completed = 1 WHERE id = ?', [sessionId]);
 }
 
+// ─── Nutrition ────────────────────────────────────────────────────────────────
+
 export async function getNutritionForDate(db, dateStr) {
-  return db.getAllAsync(
-    'SELECT * FROM nutrition_log WHERE date = ? ORDER BY id',
-    [dateStr]
-  );
+  return db.getAllAsync('SELECT * FROM nutrition_log WHERE date = ? ORDER BY id', [dateStr]);
 }
 
 export async function addMeal(db, dateStr, mealType, name, calories, protein, carbs, fats) {
@@ -309,10 +490,35 @@ export async function deleteMeal(db, id) {
   await db.runAsync('DELETE FROM nutrition_log WHERE id = ?', [id]);
 }
 
+export async function searchFoods(db, query) {
+  if (!query || query.trim().length === 0) {
+    return db.getAllAsync('SELECT * FROM food_database ORDER BY category, name LIMIT 50');
+  }
+  return db.getAllAsync(
+    "SELECT * FROM food_database WHERE name LIKE ? ORDER BY name LIMIT 30",
+    [`%${query}%`]
+  );
+}
+
+// ─── Water ────────────────────────────────────────────────────────────────────
+
+export async function getWaterForDate(db, dateStr) {
+  const row = await db.getFirstAsync('SELECT glasses FROM water_log WHERE date = ?', [dateStr]);
+  return row ? row.glasses : 0;
+}
+
+export async function setWaterGlasses(db, dateStr, glasses) {
+  await db.runAsync(
+    'INSERT OR REPLACE INTO water_log (date, glasses) VALUES (?, ?)',
+    [dateStr, glasses]
+  );
+}
+
+// ─── Progress ─────────────────────────────────────────────────────────────────
+
 export async function getWeeklySessions(db, mondayStr, sundayStr) {
   return db.getAllAsync(
-    `SELECT ws.*, td.name, td.is_rest_day
-     FROM workout_sessions ws
+    `SELECT ws.*, td.name, td.is_rest_day FROM workout_sessions ws
      JOIN training_days td ON td.id = ws.training_day_id
      WHERE ws.date >= ? AND ws.date <= ?`,
     [mondayStr, sundayStr]
@@ -321,55 +527,31 @@ export async function getWeeklySessions(db, mondayStr, sundayStr) {
 
 export async function getSessionHistory(db, limit = 30) {
   return db.getAllAsync(
-    `SELECT ws.*, td.name
-     FROM workout_sessions ws
+    `SELECT ws.*, td.name FROM workout_sessions ws
      JOIN training_days td ON td.id = ws.training_day_id
-     WHERE ws.completed = 1
-     ORDER BY ws.date DESC LIMIT ?`,
+     WHERE ws.completed = 1 ORDER BY ws.date DESC LIMIT ?`,
     [limit]
-  );
-}
-
-export async function getExerciseHistory(db, exerciseId, limit = 10) {
-  return db.getAllAsync(
-    `SELECT ws.date, wset.set_number, wset.weight_kg, wset.reps, wset.rpe
-     FROM workout_sets wset
-     JOIN workout_sessions ws ON ws.id = wset.session_id
-     WHERE wset.exercise_id = ? AND ws.completed = 1
-     ORDER BY ws.date DESC, wset.set_number ASC
-     LIMIT ?`,
-    [exerciseId, limit]
   );
 }
 
 export async function getNutritionHistory(db, days = 14) {
   return db.getAllAsync(
-    `SELECT date,
-            SUM(calories) as total_calories,
-            SUM(protein_g) as total_protein,
-            SUM(carbs_g) as total_carbs,
-            SUM(fats_g) as total_fats
-     FROM nutrition_log
-     GROUP BY date
-     ORDER BY date DESC
-     LIMIT ?`,
+    `SELECT date, SUM(calories) as total_calories, SUM(protein_g) as total_protein,
+            SUM(carbs_g) as total_carbs, SUM(fats_g) as total_fats
+     FROM nutrition_log GROUP BY date ORDER BY date DESC LIMIT ?`,
     [days]
   );
 }
 
 export async function addWeightLog(db, dateStr, weightKg) {
-  await db.runAsync(
-    'INSERT OR REPLACE INTO weight_log (date, weight_kg) VALUES (?, ?)',
-    [dateStr, weightKg]
-  );
+  await db.runAsync('INSERT OR REPLACE INTO weight_log (date, weight_kg) VALUES (?, ?)', [dateStr, weightKg]);
 }
 
 export async function getWeightHistory(db, limit = 30) {
-  return db.getAllAsync(
-    'SELECT * FROM weight_log ORDER BY date DESC LIMIT ?',
-    [limit]
-  );
+  return db.getAllAsync('SELECT * FROM weight_log ORDER BY date DESC LIMIT ?', [limit]);
 }
+
+// ─── Utils ───────────────────────────────────────────────────────────────────
 
 export function todayStr() {
   return new Date().toISOString().slice(0, 10);

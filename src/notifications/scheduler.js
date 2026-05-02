@@ -30,7 +30,6 @@ function iosWeekday(dow) {
 }
 
 export async function scheduleWorkoutNotifications(hour, minute) {
-  // Cancel existing workout notifications
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   for (const n of scheduled) {
     if (n.content.data?.type === 'workout') {
@@ -38,7 +37,6 @@ export async function scheduleWorkoutNotifications(hour, minute) {
     }
   }
 
-  // Schedule one weekly notification per active day (Mon–Fri)
   for (let dow = 0; dow <= 4; dow++) {
     const name = DAY_NAMES[dow];
     const isRest = dow === 4;
@@ -82,6 +80,39 @@ export async function scheduleEveningReminder(hour, minute) {
       minute,
     },
   });
+}
+
+const WATER_SCHEDULE = [
+  { hour: 8,  minute: 0,  body: 'Buongiorno 💧 Inizia la giornata con un bicchiere d\'acqua.' },
+  { hour: 11, minute: 0,  body: 'Metà mattina 💧 Hai bevuto abbastanza?' },
+  { hour: 13, minute: 0,  body: 'Ora di pranzo 💧 Ricordati di idratare bene.' },
+  { hour: 16, minute: 0,  body: 'Pomeriggio 💧 Ancora qualche bicchiere, dai!' },
+  { hour: 19, minute: 0,  body: 'Serata 💧 Quasi alla quota giornaliera!' },
+  { hour: 21, minute: 0,  body: 'Ultima chiamata 💧 Chiudi la giornata con 3L.' },
+];
+
+export async function scheduleWaterReminders() {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  for (const n of scheduled) {
+    if (n.content.data?.type === 'water') {
+      await Notifications.cancelScheduledNotificationAsync(n.identifier);
+    }
+  }
+
+  for (const { hour, minute, body } of WATER_SCHEDULE) {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Bevi acqua! 💧',
+        body,
+        data: { type: 'water' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
+      },
+    });
+  }
 }
 
 export async function cancelAllNotifications() {
