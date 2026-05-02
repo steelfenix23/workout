@@ -588,7 +588,21 @@ export async function getNutritionHistory(db, days = 14) {
 }
 
 export async function addWeightLog(db, dateStr, weightKg) {
-  await db.runAsync('INSERT OR REPLACE INTO weight_log (date, weight_kg) VALUES (?, ?)', [dateStr, weightKg]);
+  const existing = await db.getFirstAsync('SELECT id FROM weight_log WHERE date = ?', [dateStr]);
+  if (existing) {
+    await db.runAsync('UPDATE weight_log SET weight_kg = ? WHERE id = ?', [weightKg, existing.id]);
+  } else {
+    await db.runAsync('INSERT INTO weight_log (date, weight_kg) VALUES (?, ?)', [dateStr, weightKg]);
+  }
+}
+
+export async function getExerciseMaxWeightExcluding(db, exerciseId, sessionId) {
+  const row = await db.getFirstAsync(
+    `SELECT MAX(weight_kg) as max_w FROM workout_sets
+     WHERE exercise_id = ? AND session_id != ? AND weight_kg > 0`,
+    [exerciseId, sessionId]
+  );
+  return row?.max_w ?? 0;
 }
 
 export async function getWeightHistory(db, limit = 30) {

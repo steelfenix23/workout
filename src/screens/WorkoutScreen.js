@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, Alert, Modal, KeyboardAvoidingView, Platform, ActivityIndicator,
@@ -9,10 +9,12 @@ import {
   getTrainingDayForDate, getExercisesForTrainingDay, getOrCreateSession,
   getSessionForDate, getSetsForSession, getLastSessionSets, upsertSet, deleteSet,
   completeSession, skipTrainingDay, anticipateTrainingDay, resetDayOverride,
-  getExerciseHistory, todayStr, dateStr,
+  getExerciseHistory, getExerciseMaxWeightExcluding, addWeightLog, getWeightHistory,
+  todayStr, dateStr,
 } from '../database/db';
 import { COLORS } from '../theme';
 
+const WEIGHT_STEP = 2.5;
 const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
 const MONTH_NAMES = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
@@ -21,31 +23,65 @@ function repsLabel(min, max, isBodyweight) {
   return min === max ? `${min}${unit}` : `${min}–${max}${unit}`;
 }
 
-function suggestProgression(lastSets) {
+function suggestProgression(lastSets, targetMin, targetMax) {
   if (!lastSets.length) return null;
-  const avgReps = lastSets.reduce((s, x) => s + x.reps, 0) / lastSets.length;
-  const avgWeight = lastSets.reduce((s, x) => s + x.weight_kg, 0) / lastSets.length;
-  if (avgReps >= 12) return `↑ Aumenta: ${(avgWeight + 1.5).toFixed(1)}kg`;
-  if (avgReps >= 10) return `→ Punta a ${Math.ceil(avgReps + 1)} reps`;
-  return `→ Mantieni ${avgWeight.toFixed(1)}kg`;
+  const hasWeight = lastSets.some(s => s.weight_kg > 0);
+  const avgWeight = hasWeight
+    ? lastSets.reduce((s, x) => s + x.weight_kg, 0) / lastSets.length
+    : 0;
+  const allHitMax = lastSets.every(s => s.reps >= targetMax);
+  const anyBelowMin = lastSets.some(s => s.reps < targetMin);
+
+  if (allHitMax) {
+    if (!hasWeight) return { text: '↑ Aggiungi carico (zavorra)', color: COLORS.success };
+    return { text: `↑ Aumenta: ${(avgWeight + WEIGHT_STEP).toFixed(1)}kg`, color: COLORS.success };
+  }
+  if (!anyBelowMin) {
+    return { text: `→ Completa il range prima di aumentare`, color: COLORS.warning };
+  }
+  return {
+    text: hasWeight ? `↓ Riduci a ${Math.max(0, avgWeight - WEIGHT_STEP).toFixed(1)}kg` : '↓ Riduci il tempo',
+    color: COLORS.danger,
+  };
 }
 
 function SetRow({ set, onChange, onDelete, isBodyweight }) {
+  const isDone = parseInt(set.reps) > 0;
+
+  function adjustWeight(delta) {
+    const current = parseFloat(set.weight_kg) || 0;
+    const next = Math.max(0, Math.round((current + delta) * 10) / 10);
+    onChange({ ...set, weight_kg: next === 0 ? '' : next.toString() });
+  }
+
   return (
     <View style={styles.setRow}>
+      <View style={[styles.setDone, isDone && styles.setDoneDone]}>
+        {isDone && <Text style={styles.setDoneText}>✓</Text>}
+      </View>
       <Text style={styles.setNum}>{set.set_number}</Text>
       {!isBodyweight && (
-        <TextInput
-          style={styles.setInput}
-          value={set.weight_kg?.toString() ?? ''}
-          onChangeText={v => onChange({ ...set, weight_kg: v })}
-          keyboardType="decimal-pad"
-          placeholder="kg"
-          placeholderTextColor={COLORS.textSecondary}
-        />
+        <View style={styles.weightControl}>
+          <TouchableOpacity style={styles.weightAdjBtn} onPress={() => adjustWeight(-WEIGHT_STEP)}>
+            <Text style={styles.weightAdjText}>−</Text>
+          </TouchableOpacity>
+          <View style={styles.weightSep} />
+          <TextInput
+            style={styles.setWeightInput}
+            value={set.weight_kg?.toString() ?? ''}
+            onChangeText={v => onChange({ ...set, weight_kg: v })}
+            keyboardType="decimal-pad"
+            placeholder="kg"
+            placeholderTextColor={COLORS.textSecondary}
+          />
+          <View style={styles.weightSep} />
+          <TouchableOpacity style={styles.weightAdjBtn} onPress={() => adjustWeight(WEIGHT_STEP)}>
+            <Text style={styles.weightAdjText}>+</Text>
+          </TouchableOpacity>
+        </View>
       )}
       <TextInput
-        style={styles.setInput}
+        style={[styles.setRepsInput, isBodyweight && styles.setRepsWide]}
         value={set.reps?.toString() ?? ''}
         onChangeText={v => onChange({ ...set, reps: v })}
         keyboardType="number-pad"
@@ -53,15 +89,15 @@ function SetRow({ set, onChange, onDelete, isBodyweight }) {
         placeholderTextColor={COLORS.textSecondary}
       />
       <TextInput
-        style={[styles.setInput, styles.rpeInput]}
+        style={styles.setRpeInput}
         value={set.rpe?.toString() ?? ''}
         onChangeText={v => onChange({ ...set, rpe: v })}
         keyboardType="decimal-pad"
         placeholder="RPE"
         placeholderTextColor={COLORS.textSecondary}
       />
-      <TouchableOpacity onPress={onDelete} style={styles.deleteBtn}>
-        <Text style={styles.deleteBtnText}>✕</Text>
+      <TouchableOpacity onPress={onDelete} style={styles.setDeleteBtn}>
+        <Text style={styles.setDeleteText}>✕</Text>
       </TouchableOpacity>
     </View>
   );
@@ -69,21 +105,22 @@ function SetRow({ set, onChange, onDelete, isBodyweight }) {
 
 function ExerciseCard({ exercise, sets, lastSets, onSetsChange }) {
   const isBodyweight = exercise.name === 'Plank';
+  const exerciseLastSets = lastSets.filter(s => s.exercise_id === exercise.exercise_id);
   const suggestion = suggestProgression(
-    lastSets.filter(s => s.exercise_id === exercise.exercise_id)
+    exerciseLastSets,
+    exercise.target_reps_min,
+    exercise.target_reps_max,
   );
-  const lastRelevant = lastSets.filter(s => s.exercise_id === exercise.exercise_id);
 
   function addSet() {
     const last = sets[sets.length - 1];
-    const newSet = {
+    onSetsChange([...sets, {
       set_number: sets.length + 1,
-      weight_kg: last ? last.weight_kg : '',
-      reps: last ? last.reps : '',
+      weight_kg: last?.weight_kg ?? '',
+      reps: '',
       rpe: '',
       exercise_id: exercise.exercise_id,
-    };
-    onSetsChange([...sets, newSet]);
+    }]);
   }
 
   function updateSet(index, updated) {
@@ -93,8 +130,9 @@ function ExerciseCard({ exercise, sets, lastSets, onSetsChange }) {
   }
 
   function removeSet(index) {
-    const next = sets.filter((_, i) => i !== index).map((s, i) => ({ ...s, set_number: i + 1 }));
-    onSetsChange(next);
+    onSetsChange(
+      sets.filter((_, i) => i !== index).map((s, i) => ({ ...s, set_number: i + 1 }))
+    );
   }
 
   return (
@@ -105,21 +143,24 @@ function ExerciseCard({ exercise, sets, lastSets, onSetsChange }) {
         Target: {exercise.target_sets}×{repsLabel(exercise.target_reps_min, exercise.target_reps_max, isBodyweight)}
       </Text>
 
-      {lastRelevant.length > 0 && (
+      {exerciseLastSets.length > 0 && (
         <Text style={styles.lastSession}>
-          Ultima sessione: {lastRelevant.slice(0, exercise.target_sets).map(
-            s => `${s.weight_kg}kg×${s.reps}`
+          Ultima: {exerciseLastSets.slice(0, exercise.target_sets).map(
+            s => s.weight_kg > 0 ? `${s.weight_kg}kg×${s.reps}` : `×${s.reps}`
           ).join('  ')}
         </Text>
       )}
-      {suggestion && <Text style={styles.suggestion}>{suggestion}</Text>}
+      {suggestion && (
+        <Text style={[styles.suggestion, { color: suggestion.color }]}>{suggestion.text}</Text>
+      )}
 
-      <View style={styles.setHeader}>
-        <Text style={[styles.setHeaderText, { width: 24 }]}>#</Text>
-        {!isBodyweight && <Text style={[styles.setHeaderText, styles.setInput]}>kg</Text>}
-        <Text style={[styles.setHeaderText, styles.setInput]}>{isBodyweight ? 'sec' : 'reps'}</Text>
-        <Text style={[styles.setHeaderText, styles.rpeInput]}>RPE</Text>
-        <View style={styles.deleteBtn} />
+      {/* Column headers */}
+      <View style={styles.setHeaderRow}>
+        <View style={{ width: 36 }} />
+        {!isBodyweight && <Text style={[styles.setColHdr, { width: 108 }]}>kg</Text>}
+        <Text style={[styles.setColHdr, { flex: 1 }]}>{isBodyweight ? 'sec' : 'reps'}</Text>
+        <Text style={[styles.setColHdr, { width: 46 }]}>RPE</Text>
+        <View style={{ width: 26 }} />
       </View>
 
       {sets.map((s, i) => (
@@ -139,7 +180,6 @@ function ExerciseCard({ exercise, sets, lastSets, onSetsChange }) {
   );
 }
 
-// Versione read-only per giorni non oggi
 function ExerciseCardReadOnly({ exercise, sets }) {
   const isBodyweight = exercise.name === 'Plank';
   return (
@@ -189,23 +229,18 @@ function ExerciseDetailModal({ exercise, onClose }) {
           <Text style={styles.modalTitle}>{exercise.name}</Text>
           <Text style={styles.modalEquipment}>{exercise.equipment}</Text>
 
-          <View style={styles.tabRow}>
-            <TouchableOpacity
-              style={[styles.tab, tab === 'instructions' && styles.tabActive]}
-              onPress={() => switchTab('instructions')}
-            >
-              <Text style={[styles.tabText, tab === 'instructions' && styles.tabTextActive]}>
-                Istruzioni
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, tab === 'history' && styles.tabActive]}
-              onPress={() => switchTab('history')}
-            >
-              <Text style={[styles.tabText, tab === 'history' && styles.tabTextActive]}>
-                Storico
-              </Text>
-            </TouchableOpacity>
+          <View style={styles.detailTabRow}>
+            {['instructions', 'history'].map(t => (
+              <TouchableOpacity
+                key={t}
+                style={[styles.detailTab, tab === t && styles.detailTabActive]}
+                onPress={() => switchTab(t)}
+              >
+                <Text style={[styles.detailTabText, tab === t && styles.detailTabTextActive]}>
+                  {t === 'instructions' ? 'Istruzioni' : 'Storico'}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           {tab === 'instructions' ? (
@@ -240,10 +275,121 @@ function ExerciseDetailModal({ exercise, onClose }) {
   );
 }
 
+function SessionSummaryModal({ summary, onClose }) {
+  const { volume, lastVolume, prs } = summary;
+  const volDiff = lastVolume > 0
+    ? Math.round((volume - lastVolume) / lastVolume * 100)
+    : null;
+  const volumeText = volume >= 1000
+    ? `${(volume / 1000).toFixed(1)}t`
+    : `${Math.round(volume)} kg`;
+
+  return (
+    <Modal transparent animationType="fade">
+      <View style={styles.summaryOverlay}>
+        <View style={styles.summaryBox}>
+          <Text style={styles.summaryEmoji}>💪</Text>
+          <Text style={styles.summaryTitle}>Sessione completata!</Text>
+
+          {volume > 0 && (
+            <View style={styles.summaryVolumeCard}>
+              <Text style={styles.summaryVolumeLabel}>VOLUME TOTALE</Text>
+              <Text style={styles.summaryVolumeValue}>{volumeText}</Text>
+              {volDiff !== null ? (
+                <Text style={[styles.summaryVolumeDiff, { color: volDiff >= 0 ? COLORS.success : COLORS.danger }]}>
+                  {volDiff >= 0 ? `+${volDiff}%` : `${volDiff}%`} vs ultima sessione
+                </Text>
+              ) : (
+                <Text style={[styles.summaryVolumeDiff, { color: COLORS.textSecondary }]}>
+                  Prima sessione registrata
+                </Text>
+              )}
+            </View>
+          )}
+
+          {prs.length > 0 && (
+            <View style={styles.summaryPrs}>
+              <Text style={styles.summaryPrsTitle}>NUOVI RECORD 🏆</Text>
+              {prs.map((pr, i) => (
+                <View key={i} style={styles.summaryPrRow}>
+                  <Text style={styles.summaryPrName} numberOfLines={1}>{pr.name}</Text>
+                  <Text style={styles.summaryPrWeight}>
+                    {pr.weight}kg{pr.prevMax > 0 ? ` (+${(pr.weight - pr.prevMax).toFixed(1)})` : ''}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          <TouchableOpacity style={styles.summaryBtn} onPress={onClose}>
+            <Text style={styles.summaryBtnText}>Ottimo lavoro! ✓</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function RestDayWidget() {
+  const db = useSQLiteContext();
+  const [input, setInput] = useState('');
+  const [log, setLog] = useState([]);
+
+  useEffect(() => { loadLog(); }, []);
+
+  async function loadLog() {
+    const entries = await getWeightHistory(db, 7);
+    setLog(entries);
+    if (entries.length > 0 && !input) {
+      setInput(entries[0].weight_kg.toString());
+    }
+  }
+
+  async function handleSave() {
+    const w = parseFloat(input.replace(',', '.'));
+    if (!w || w < 30 || w > 250) {
+      Alert.alert('Peso non valido', 'Inserisci un valore tra 30 e 250 kg.');
+      return;
+    }
+    await addWeightLog(db, todayStr(), w);
+    loadLog();
+  }
+
+  return (
+    <View style={styles.weightWidget}>
+      <Text style={styles.weightWidgetTitle}>PESO CORPOREO</Text>
+      <View style={styles.weightWidgetRow}>
+        <TextInput
+          style={styles.weightWidgetInput}
+          value={input}
+          onChangeText={setInput}
+          keyboardType="decimal-pad"
+          placeholder="74.0"
+          placeholderTextColor={COLORS.textSecondary}
+          selectTextOnFocus
+        />
+        <Text style={styles.weightWidgetUnit}>kg</Text>
+        <TouchableOpacity style={styles.weightWidgetBtn} onPress={handleSave}>
+          <Text style={styles.weightWidgetBtnText}>Salva</Text>
+        </TouchableOpacity>
+      </View>
+      {log.length > 0 && (
+        <View style={styles.weightLog}>
+          {log.map((entry, i) => (
+            <View key={i} style={styles.weightLogRow}>
+              <Text style={styles.weightLogDate}>{entry.date}</Text>
+              <Text style={styles.weightLogVal}>{entry.weight_kg} kg</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function WorkoutScreen() {
   const db = useSQLiteContext();
   const [viewDate, setViewDate] = useState(() => new Date());
-
   const [loading, setLoading] = useState(true);
   const [trainingDay, setTrainingDay] = useState(null);
   const [isSkipped, setIsSkipped] = useState(false);
@@ -254,23 +400,19 @@ export default function WorkoutScreen() {
   const [lastSets, setLastSets] = useState([]);
   const [saving, setSaving] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState(null);
+  const [summary, setSummary] = useState(null);
 
   const todayIso = todayStr();
 
   function viewIso() { return dateStr(viewDate); }
-
-  function isViewingToday() {
-    return viewIso() === todayIso;
-  }
+  function isViewingToday() { return viewIso() === todayIso; }
 
   function viewDateLabel() {
     const iso = viewIso();
     if (iso === todayIso) return 'Oggi';
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
     if (iso === dateStr(yesterday)) return 'Ieri';
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
     if (iso === dateStr(tomorrow)) return 'Domani';
     return `${DAY_NAMES[viewDate.getDay()]} ${viewDate.getDate()} ${MONTH_NAMES[viewDate.getMonth()]}`;
   }
@@ -284,9 +426,7 @@ export default function WorkoutScreen() {
   }
 
   useFocusEffect(
-    useCallback(() => {
-      loadWorkout(viewDate);
-    }, [viewDate])
+    useCallback(() => { loadWorkout(viewDate); }, [viewDate])
   );
 
   async function loadWorkout(date) {
@@ -321,13 +461,11 @@ export default function WorkoutScreen() {
     if (isTodayView) {
       const sess = await getOrCreateSession(db, td.id, iso);
       setSession(sess);
-
       const [currentSets, prev] = await Promise.all([
         getSetsForSession(db, sess.id),
         getLastSessionSets(db, td.id, iso),
       ]);
       setLastSets(prev);
-
       const map = {};
       for (const ex of exs) {
         const eid = ex.exercise_id;
@@ -352,11 +490,9 @@ export default function WorkoutScreen() {
       }
       setSetsMap(map);
     } else {
-      // Modalità lettura: sessione esistente o piano futuro
       const sess = await getSessionForDate(db, td.id, iso);
       setSession(sess);
       setLastSets([]);
-
       const map = {};
       if (sess) {
         const allSets = await getSetsForSession(db, sess.id);
@@ -366,9 +502,7 @@ export default function WorkoutScreen() {
             .map(s => ({ ...s, weight_kg: s.weight_kg?.toString() ?? '', reps: s.reps?.toString() ?? '' }));
         }
       } else {
-        for (const ex of exs) {
-          map[ex.exercise_id] = [];
-        }
+        for (const ex of exs) map[ex.exercise_id] = [];
       }
       setSetsMap(map);
     }
@@ -430,9 +564,28 @@ export default function WorkoutScreen() {
 
   async function handleComplete() {
     await saveAll();
+
+    // Compute volume
+    const currentVolume = Object.values(setsMap).flat()
+      .reduce((sum, s) => sum + (parseFloat(s.weight_kg) || 0) * (parseInt(s.reps) || 0), 0);
+    const lastVolume = lastSets.reduce((sum, s) => sum + (s.weight_kg || 0) * (s.reps || 0), 0);
+
+    // Detect PRs (all-time, excluding current session which is already saved)
+    const prs = [];
+    for (const ex of exercises) {
+      const eid = ex.exercise_id;
+      const curSets = (setsMap[eid] || []).filter(s => parseFloat(s.weight_kg) > 0);
+      if (!curSets.length) continue;
+      const curMax = Math.max(...curSets.map(s => parseFloat(s.weight_kg) || 0));
+      const histMax = await getExerciseMaxWeightExcluding(db, eid, session.id);
+      if (curMax > histMax) {
+        prs.push({ name: ex.name, weight: curMax, prevMax: histMax });
+      }
+    }
+
     await completeSession(db, session.id);
     setSession(prev => ({ ...prev, completed: 1 }));
-    Alert.alert('Ottimo lavoro! 💪', 'Sessione completata e salvata.');
+    setSummary({ volume: currentVolume, lastVolume, prs });
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -445,14 +598,10 @@ export default function WorkoutScreen() {
         <TouchableOpacity style={styles.dateNavArrow} onPress={() => navigateDay(-1)}>
           <Text style={styles.dateNavArrowText}>‹</Text>
         </TouchableOpacity>
-
         <TouchableOpacity onPress={() => setViewDate(new Date())} style={styles.dateNavCenter}>
           <Text style={styles.dateNavLabel}>{viewDateLabel()}</Text>
-          {!viewing && (
-            <Text style={styles.dateNavSub}>Tocca per tornare ad oggi</Text>
-          )}
+          {!viewing && <Text style={styles.dateNavSub}>Tocca per tornare ad oggi</Text>}
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.dateNavArrow} onPress={() => navigateDay(1)}>
           <Text style={styles.dateNavArrowText}>›</Text>
         </TouchableOpacity>
@@ -471,50 +620,49 @@ export default function WorkoutScreen() {
 
   if (isSkipped) {
     return (
-      <View style={styles.centered}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.restContent}>
         {renderDateNav()}
-        <Text style={[styles.restEmoji, { marginTop: 32 }]}>⏭️</Text>
-        <Text style={styles.restTitle}>Giornata saltata</Text>
-        <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
-          <Text style={styles.resetBtnText}>Ripristina giornata normale</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.restHero}>
+          <Text style={styles.restEmoji}>⏭️</Text>
+          <Text style={styles.restTitle}>Giornata saltata</Text>
+          <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
+            <Text style={styles.resetBtnText}>Ripristina giornata normale</Text>
+          </TouchableOpacity>
+        </View>
+        {viewing && <RestDayWidget />}
+      </ScrollView>
     );
   }
 
   if (!trainingDay || trainingDay.is_rest_day) {
     return (
-      <View style={styles.centered}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.restContent}>
         {renderDateNav()}
-        <Text style={[styles.restEmoji, { marginTop: 32 }]}>
-          {trainingDay ? '🛋️' : '📅'}
-        </Text>
-        <Text style={styles.restTitle}>
-          {trainingDay ? trainingDay.name : 'Nessun allenamento'}
-        </Text>
-        <Text style={styles.restSubtitle}>
-          {trainingDay?.name === 'Recupero Attivo'
-            ? 'Tapis roulant 20-30 minuti o stretching leggero.'
-            : trainingDay
-            ? 'Recupero completo. Il muscolo cresce a riposo.'
-            : ''}
-        </Text>
-        {viewing && (
-          <View style={styles.overrideBtns}>
+        <View style={styles.restHero}>
+          <Text style={styles.restEmoji}>{trainingDay ? '🛋️' : '📅'}</Text>
+          <Text style={styles.restTitle}>
+            {trainingDay ? trainingDay.name : 'Nessun allenamento'}
+          </Text>
+          <Text style={styles.restSubtitle}>
+            {trainingDay?.name === 'Recupero Attivo'
+              ? 'Tapis roulant 20-30 minuti o stretching leggero.'
+              : trainingDay
+              ? 'Recupero completo. Il muscolo cresce a riposo.'
+              : ''}
+          </Text>
+          {viewing && (
             <TouchableOpacity style={styles.overrideBtn} onPress={handleAnticipate}>
               <Text style={styles.overrideBtnText}>Anticipa allenamento</Text>
             </TouchableOpacity>
-          </View>
-        )}
-      </View>
+          )}
+        </View>
+        {viewing && <RestDayWidget />}
+      </ScrollView>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         {renderDateNav()}
 
@@ -553,35 +701,26 @@ export default function WorkoutScreen() {
         )}
 
         {exercises.map(ex => (
-          viewing ? (
-            <TouchableOpacity
-              key={ex.exercise_id}
-              onLongPress={() => setSelectedExercise(ex)}
-              delayLongPress={400}
-              activeOpacity={1}
-            >
+          <TouchableOpacity
+            key={ex.exercise_id}
+            onLongPress={() => setSelectedExercise(ex)}
+            delayLongPress={400}
+            activeOpacity={1}
+          >
+            {viewing ? (
               <ExerciseCard
                 exercise={ex}
                 sets={setsMap[ex.exercise_id] ?? []}
                 lastSets={lastSets}
-                onSetsChange={updated =>
-                  setSetsMap(prev => ({ ...prev, [ex.exercise_id]: updated }))
-                }
+                onSetsChange={updated => setSetsMap(prev => ({ ...prev, [ex.exercise_id]: updated }))}
               />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              key={ex.exercise_id}
-              onLongPress={() => setSelectedExercise(ex)}
-              delayLongPress={400}
-              activeOpacity={1}
-            >
+            ) : (
               <ExerciseCardReadOnly
                 exercise={ex}
                 sets={setsMap[ex.exercise_id] ?? []}
               />
-            </TouchableOpacity>
-          )
+            )}
+          </TouchableOpacity>
         ))}
 
         {viewing && (
@@ -593,7 +732,6 @@ export default function WorkoutScreen() {
             >
               <Text style={styles.saveBtnText}>{saving ? 'Salvataggio...' : 'Salva progressi'}</Text>
             </TouchableOpacity>
-
             {session?.completed !== 1 && (
               <TouchableOpacity style={styles.completeBtn} onPress={handleComplete}>
                 <Text style={styles.completeBtnText}>Sessione completata ✓</Text>
@@ -613,6 +751,9 @@ export default function WorkoutScreen() {
           onClose={() => setSelectedExercise(null)}
         />
       )}
+      {summary && (
+        <SessionSummaryModal summary={summary} onClose={() => setSummary(null)} />
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -623,14 +764,9 @@ const styles = StyleSheet.create({
   centered: { flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', padding: 16 },
 
   dateNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 14, backgroundColor: COLORS.card, borderRadius: 12,
+    paddingVertical: 8, paddingHorizontal: 4,
   },
   dateNavArrow: { paddingHorizontal: 16, paddingVertical: 4 },
   dateNavArrowText: { fontSize: 28, color: COLORS.accent, fontWeight: '300' },
@@ -642,112 +778,147 @@ const styles = StyleSheet.create({
   dayName: { fontSize: 22, fontWeight: '700', color: COLORS.text },
   completedBadge: { backgroundColor: COLORS.success, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   completedBadgeText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-
   readOnlyBadge: { color: COLORS.textSecondary, fontSize: 13, marginBottom: 12, fontStyle: 'italic' },
 
   overrideBtns: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   overrideBtn: {
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6,
   },
   overrideBtnText: { color: COLORS.textSecondary, fontSize: 13, fontWeight: '600' },
 
-  exerciseCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 14,
-  },
+  exerciseCard: { backgroundColor: COLORS.card, borderRadius: 14, padding: 14, marginBottom: 14 },
   exerciseName: { fontSize: 17, fontWeight: '700', color: COLORS.text, marginBottom: 2 },
   exerciseMuscle: { fontSize: 12, color: COLORS.accent, marginBottom: 4 },
   exerciseTarget: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 4 },
   lastSession: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 2 },
-  suggestion: { fontSize: 12, color: COLORS.success, fontWeight: '600', marginBottom: 8 },
+  suggestion: { fontSize: 12, fontWeight: '600', marginBottom: 8 },
 
-  setHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  setHeaderText: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '600' },
+  // Column headers
+  setHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4, gap: 4 },
+  setColHdr: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '600', textAlign: 'center' },
 
-  setRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  setNum: { width: 24, fontSize: 13, color: COLORS.textSecondary, fontWeight: '600' },
-  setInput: {
-    flex: 1,
-    backgroundColor: COLORS.border,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    color: COLORS.text,
-    fontSize: 15,
-    marginRight: 6,
-    textAlign: 'center',
+  // Set row
+  setRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 7, gap: 4 },
+  setDone: {
+    width: 22, height: 22, borderRadius: 11,
+    borderWidth: 2, borderColor: COLORS.border,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  rpeInput: { flex: 0.7 },
-  deleteBtn: { width: 28, alignItems: 'center' },
-  deleteBtnText: { color: COLORS.textSecondary, fontSize: 14 },
+  setDoneDone: { backgroundColor: COLORS.success, borderColor: COLORS.success },
+  setDoneText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  setNum: { width: 16, textAlign: 'center', fontSize: 12, color: COLORS.textSecondary, fontWeight: '600', flexShrink: 0 },
+
+  // Connected weight control [-][kg][+]
+  weightControl: {
+    flexDirection: 'row', alignItems: 'center', flexShrink: 0,
+    backgroundColor: COLORS.border, borderRadius: 8, overflow: 'hidden',
+  },
+  weightAdjBtn: { width: 28, height: 34, alignItems: 'center', justifyContent: 'center' },
+  weightAdjText: { fontSize: 19, color: COLORS.text, fontWeight: '500', lineHeight: 22 },
+  weightSep: { width: 1, height: 20, backgroundColor: COLORS.bg },
+  setWeightInput: {
+    width: 50, height: 34, backgroundColor: 'transparent',
+    paddingHorizontal: 2, color: COLORS.text, fontSize: 14, textAlign: 'center',
+  },
+
+  setRepsInput: {
+    flex: 1, height: 34, minWidth: 44,
+    backgroundColor: COLORS.border, borderRadius: 8,
+    paddingHorizontal: 4, color: COLORS.text, fontSize: 14, textAlign: 'center',
+  },
+  setRepsWide: { flex: 1 },
+  setRpeInput: {
+    width: 44, height: 34, flexShrink: 0,
+    backgroundColor: COLORS.border, borderRadius: 8,
+    paddingHorizontal: 4, color: COLORS.text, fontSize: 13, textAlign: 'center',
+  },
+  setDeleteBtn: { width: 24, alignItems: 'center', flexShrink: 0 },
+  setDeleteText: { color: COLORS.textSecondary, fontSize: 14 },
 
   addSetBtn: { marginTop: 6, alignSelf: 'flex-start' },
   addSetText: { color: COLORS.accent, fontWeight: '600', fontSize: 14 },
 
   actions: { marginTop: 8, gap: 10 },
   saveBtn: {
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.accent,
-    borderRadius: 12,
-    padding: 14,
-    alignItems: 'center',
+    backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.accent,
+    borderRadius: 12, padding: 14, alignItems: 'center',
   },
   saveBtnText: { color: COLORS.accent, fontWeight: '700', fontSize: 16 },
-  completeBtn: {
-    backgroundColor: COLORS.success,
-    borderRadius: 12,
-    padding: 14,
-    alignItems: 'center',
-  },
+  completeBtn: { backgroundColor: COLORS.success, borderRadius: 12, padding: 14, alignItems: 'center' },
   completeBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   btnDisabled: { opacity: 0.5 },
   hint: { textAlign: 'center', color: COLORS.textSecondary, fontSize: 12, marginTop: 16 },
 
+  // Rest day screen
+  restContent: { padding: 16, paddingBottom: 40 },
+  restHero: { alignItems: 'center', paddingVertical: 28 },
   restEmoji: { fontSize: 60, marginBottom: 16 },
   restTitle: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
-  restSubtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  restSubtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
   resetBtn: {
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    marginTop: 8,
+    backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10, marginTop: 8,
   },
   resetBtnText: { color: COLORS.textSecondary, fontWeight: '600' },
 
+  // Weight widget (rest days)
+  weightWidget: { backgroundColor: COLORS.card, borderRadius: 16, padding: 16 },
+  weightWidgetTitle: { fontSize: 11, fontWeight: '700', color: COLORS.textSecondary, letterSpacing: 1.2, marginBottom: 12 },
+  weightWidgetRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  weightWidgetInput: {
+    flex: 1, backgroundColor: COLORS.border, borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 10,
+    color: COLORS.text, fontSize: 20, fontWeight: '700', textAlign: 'center',
+  },
+  weightWidgetUnit: { fontSize: 16, color: COLORS.textSecondary, marginHorizontal: 10 },
+  weightWidgetBtn: { backgroundColor: COLORS.accent, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  weightWidgetBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  weightLog: { marginTop: 12, borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 10 },
+  weightLogRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
+  weightLogDate: { fontSize: 13, color: COLORS.textSecondary },
+  weightLogVal: { fontSize: 13, color: COLORS.text, fontWeight: '600' },
+
+  // Exercise detail modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 24 },
   modalBox: { backgroundColor: COLORS.card, borderRadius: 16, padding: 20, maxHeight: '80%' },
   modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
   modalEquipment: { fontSize: 12, color: COLORS.accent, marginBottom: 12 },
-
-  tabRow: { flexDirection: 'row', marginBottom: 16, borderRadius: 8, overflow: 'hidden', backgroundColor: COLORS.border },
-  tab: { flex: 1, paddingVertical: 8, alignItems: 'center' },
-  tabActive: { backgroundColor: COLORS.accent },
-  tabText: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
-  tabTextActive: { color: '#fff' },
-
+  detailTabRow: { flexDirection: 'row', marginBottom: 16, borderRadius: 8, overflow: 'hidden', backgroundColor: COLORS.border },
+  detailTab: { flex: 1, paddingVertical: 8, alignItems: 'center' },
+  detailTabActive: { backgroundColor: COLORS.accent },
+  detailTabText: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
+  detailTabTextActive: { color: '#fff' },
   modalInstructions: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 22, marginBottom: 20 },
   modalClose: { backgroundColor: COLORS.accent, borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 8 },
   modalCloseText: { color: '#fff', fontWeight: '700' },
-
   historyCenter: { alignItems: 'center', paddingVertical: 24 },
   historyList: { maxHeight: 260, marginBottom: 8 },
-  historySession: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
+  historySession: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   historyDate: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
   historySets: { fontSize: 13, color: COLORS.textSecondary },
   noHistory: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', paddingVertical: 24, marginBottom: 8 },
+
+  // Session summary modal
+  summaryOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 24 },
+  summaryBox: { backgroundColor: COLORS.card, borderRadius: 20, padding: 24, alignItems: 'center' },
+  summaryEmoji: { fontSize: 56, marginBottom: 8 },
+  summaryTitle: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginBottom: 20 },
+  summaryVolumeCard: {
+    backgroundColor: COLORS.bg, borderRadius: 12, padding: 16,
+    width: '100%', alignItems: 'center', marginBottom: 14,
+  },
+  summaryVolumeLabel: { fontSize: 11, color: COLORS.textSecondary, letterSpacing: 1.2, marginBottom: 4, fontWeight: '700' },
+  summaryVolumeValue: { fontSize: 40, fontWeight: '700', color: COLORS.text },
+  summaryVolumeDiff: { fontSize: 14, fontWeight: '600', marginTop: 4 },
+  summaryPrs: { width: '100%', marginBottom: 16 },
+  summaryPrsTitle: { fontSize: 11, fontWeight: '700', color: COLORS.textSecondary, letterSpacing: 1.2, marginBottom: 8 },
+  summaryPrRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  summaryPrName: { fontSize: 14, color: COLORS.text, flex: 1, marginRight: 8 },
+  summaryPrWeight: { fontSize: 14, color: COLORS.success, fontWeight: '700' },
+  summaryBtn: { backgroundColor: COLORS.success, borderRadius: 12, padding: 14, width: '100%', alignItems: 'center' },
+  summaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });
