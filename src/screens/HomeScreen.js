@@ -8,7 +8,7 @@ import {
   getProfile, getTrainingDayForDate, getNutritionForDate,
   getWeeklySessions, getWaterForDate, setWaterGlasses, todayStr, dateStr,
 } from '../database/db';
-import { COLORS, FONTS } from '../theme';
+import { COLORS } from '../theme';
 
 const DAY_LABELS = ['Lu', 'Ma', 'Me', 'Gi', 'Ve', 'Sa', 'Do'];
 const MONTH_NAMES = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
