@@ -135,6 +135,15 @@ export async function initDatabase(db) {
     await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seed_version', '3')");
   }
 
+  if (currentVersion < 4) {
+    const cols = await db.getAllAsync("PRAGMA table_info(profile)");
+    if (!cols.find(c => c.name === 'schedule_offset')) {
+      await db.execAsync('ALTER TABLE profile ADD COLUMN schedule_offset INTEGER DEFAULT 0');
+    }
+    await seedFoodsV4(db);
+    await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seed_version', '4')");
+  }
+
   const profileExists = await db.getFirstAsync('SELECT id FROM profile WHERE id = 1');
   if (!profileExists) {
     await db.runAsync(
@@ -350,6 +359,117 @@ async function seedFoods(db) {
   }
 }
 
+async function seedFoodsV4(db) {
+  // Valori per 100g se non diversamente indicato — fonte USDA/INRAN
+  const foods = [
+    // CARNE (per 100g)
+    ['Petto di pollo cotto (100g)', 100, 'g', 165, 31, 0, 3.6, 'Carne'],
+    ['Petto di pollo crudo (100g)', 100, 'g', 120, 23, 0, 2.6, 'Carne'],
+    ['Coscia di pollo cotta (100g)', 100, 'g', 215, 18, 0, 15, 'Carne'],
+    ['Macinato di manzo magro (100g)', 100, 'g', 137, 22, 0, 5, 'Carne'],
+    ['Bistecca di manzo (100g)', 100, 'g', 250, 26, 0, 15, 'Carne'],
+    ['Lonza di maiale (100g)', 100, 'g', 145, 21, 0, 6, 'Carne'],
+    ['Prosciutto cotto (100g)', 100, 'g', 132, 15, 1.5, 7, 'Affettati'],
+    ['Prosciutto crudo (100g)', 100, 'g', 268, 25, 0.3, 18, 'Affettati'],
+    ['Bresaola (100g)', 100, 'g', 151, 33, 0.5, 2, 'Affettati'],
+    ['Speck (100g)', 100, 'g', 296, 27, 0.4, 20, 'Affettati'],
+    ['Mortadella (100g)', 100, 'g', 311, 14, 0.9, 28, 'Affettati'],
+    // PESCE (per 100g)
+    ['Salmone (100g)', 100, 'g', 208, 20, 0, 13, 'Pesce'],
+    ['Merluzzo (100g)', 100, 'g', 82, 18, 0, 0.7, 'Pesce'],
+    ['Sgombro (100g)', 100, 'g', 205, 19, 0, 14, 'Pesce'],
+    ['Gamberetti (100g)', 100, 'g', 85, 18, 0.9, 1, 'Pesce'],
+    ["Sardine sott'olio sgocciolate (100g)", 100, 'g', 208, 25, 0, 12, 'Pesce'],
+    ['Trota (100g)', 100, 'g', 119, 20, 0, 4, 'Pesce'],
+    // LATTICINI (per 100g)
+    ['Ricotta vaccina (100g)', 100, 'g', 136, 9, 3.5, 10, 'Latticini'],
+    ['Fiocchi di latte (100g)', 100, 'g', 98, 11, 3.4, 4.3, 'Latticini'],
+    ['Parmigiano reggiano (100g)', 100, 'g', 431, 36, 0, 29, 'Latticini'],
+    ['Grana Padano (100g)', 100, 'g', 384, 33, 0, 28, 'Latticini'],
+    ['Fior di latte (100g)', 100, 'g', 254, 18, 2.2, 19, 'Latticini'],
+    ['Latte scremato (100ml)', 100, 'ml', 34, 3.4, 4.9, 0.1, 'Latticini'],
+    ['Kefir (100ml)', 100, 'ml', 60, 3.3, 4, 3.5, 'Latticini'],
+    // CEREALI (per 100g crudo se non indicato)
+    ['Avena (100g)', 100, 'g', 389, 17, 66, 7, 'Cereali'],
+    ['Riso basmati (100g)', 100, 'g', 356, 7, 78, 0.6, 'Cereali'],
+    ['Riso integrale (100g)', 100, 'g', 370, 8, 76, 3, 'Cereali'],
+    ['Riso basmati cotto (100g)', 100, 'g', 130, 2.7, 28, 0.3, 'Cereali'],
+    ['Pasta cotta (100g)', 100, 'g', 158, 5.8, 31, 0.9, 'Cereali'],
+    ['Pasta integrale cruda (100g)', 100, 'g', 352, 13, 66, 2.5, 'Cereali'],
+    ['Quinoa (100g)', 100, 'g', 368, 14, 64, 6, 'Cereali'],
+    ['Farro (100g)', 100, 'g', 340, 14, 68, 2.5, 'Cereali'],
+    ['Orzo perlato (100g)', 100, 'g', 352, 10, 77, 1.2, 'Cereali'],
+    ['Gallette di riso (100g)', 100, 'g', 381, 7, 80, 3, 'Cereali'],
+    // PANE (per 100g)
+    ['Pane integrale (100g)', 100, 'g', 247, 9, 41, 4, 'Pane'],
+    ['Pane di segale (100g)', 100, 'g', 229, 6, 48, 1.5, 'Pane'],
+    ['Piadina (100g)', 100, 'g', 330, 8, 50, 11, 'Pane'],
+    // LEGUMI (per 100g cotti)
+    ['Lenticchie cotte (100g)', 100, 'g', 116, 9, 20, 0.4, 'Legumi'],
+    ['Ceci cotti (100g)', 100, 'g', 164, 9, 27, 2.6, 'Legumi'],
+    ['Fagioli borlotti cotti (100g)', 100, 'g', 111, 7, 20, 0.5, 'Legumi'],
+    ['Edamame (100g)', 100, 'g', 121, 11, 9, 5, 'Legumi'],
+    ['Tofu (100g)', 100, 'g', 76, 8, 1.9, 4.8, 'Legumi'],
+    // VERDURE (per 100g)
+    ['Spinaci (100g)', 100, 'g', 23, 2.9, 3.6, 0.4, 'Verdure'],
+    ['Broccoli (100g)', 100, 'g', 34, 2.8, 7, 0.4, 'Verdure'],
+    ['Asparagi (100g)', 100, 'g', 20, 2.2, 3.9, 0.1, 'Verdure'],
+    ['Peperoni rossi (100g)', 100, 'g', 31, 1, 6, 0.3, 'Verdure'],
+    ['Carote (100g)', 100, 'g', 41, 0.9, 10, 0.2, 'Verdure'],
+    ['Cetrioli (100g)', 100, 'g', 15, 0.7, 3.6, 0.1, 'Verdure'],
+    ['Funghi champignon (100g)', 100, 'g', 22, 3.1, 3.3, 0.3, 'Verdure'],
+    ['Cipolla (100g)', 100, 'g', 40, 1.1, 9, 0.1, 'Verdure'],
+    ['Piselli (100g)', 100, 'g', 81, 5.4, 14, 0.4, 'Verdure'],
+    ['Cavolo cappuccio (100g)', 100, 'g', 25, 1.3, 6, 0.1, 'Verdure'],
+    ['Fagioli verdi (100g)', 100, 'g', 31, 1.8, 7, 0.1, 'Verdure'],
+    ['Patate (100g)', 100, 'g', 77, 2, 17, 0.1, 'Verdure'],
+    ['Patate dolci (100g)', 100, 'g', 86, 1.6, 20, 0.1, 'Verdure'],
+    // FRUTTA (per 100g)
+    ['Banana (100g)', 100, 'g', 89, 1.1, 23, 0.3, 'Frutta'],
+    ['Mela (100g)', 100, 'g', 52, 0.3, 14, 0.2, 'Frutta'],
+    ['Arancia (100g)', 100, 'g', 47, 0.9, 12, 0.1, 'Frutta'],
+    ['Fragole (100g)', 100, 'g', 32, 0.7, 8, 0.3, 'Frutta'],
+    ['Avocado (100g)', 100, 'g', 160, 2, 9, 15, 'Frutta'],
+    ['Mirtilli (100g)', 100, 'g', 57, 0.7, 14, 0.3, 'Frutta'],
+    ['Kiwi (100g)', 100, 'g', 61, 1.1, 15, 0.5, 'Frutta'],
+    ['Ananas (100g)', 100, 'g', 50, 0.5, 13, 0.1, 'Frutta'],
+    ['Anguria (100g)', 100, 'g', 30, 0.6, 7.6, 0.2, 'Frutta'],
+    // FRUTTA SECCA (per 100g)
+    ['Mandorle (100g)', 100, 'g', 579, 21, 22, 50, 'Frutta secca'],
+    ['Noci (100g)', 100, 'g', 654, 15, 14, 65, 'Frutta secca'],
+    ['Arachidi (100g)', 100, 'g', 567, 26, 16, 49, 'Frutta secca'],
+    ['Anacardi (100g)', 100, 'g', 553, 18, 30, 44, 'Frutta secca'],
+    ['Nocciole (100g)', 100, 'g', 628, 15, 17, 61, 'Frutta secca'],
+    ['Semi di chia (100g)', 100, 'g', 486, 17, 42, 31, 'Frutta secca'],
+    // CONDIMENTI
+    ['Olio EVO (100ml)', 100, 'ml', 884, 0, 0, 100, 'Condimenti'],
+    ['Olio EVO (1 cucchiaio 10ml)', 10, 'ml', 88, 0, 0, 10, 'Condimenti'],
+    ['Burro (100g)', 100, 'g', 717, 0.5, 0.1, 81, 'Condimenti'],
+    ['Miele (100g)', 100, 'g', 304, 0.3, 82, 0, 'Condimenti'],
+    ['Maionese (100g)', 100, 'g', 680, 1, 0.6, 75, 'Condimenti'],
+    // DOLCI
+    ['Cioccolato fondente 70% (100g)', 100, 'g', 598, 8, 46, 42, 'Dolci'],
+    // BEVANDE
+    ["Succo d'arancia 100% (200ml)", 200, 'ml', 90, 1.6, 22, 0.4, 'Bevande'],
+    ['Latte di avena (200ml)', 200, 'ml', 90, 1.4, 15, 2, 'Bevande'],
+    ['Latte di soia (200ml)', 200, 'ml', 76, 6, 4.8, 2.8, 'Bevande'],
+    // SUPPLEMENTI
+    ['Whey protein (1 scoop 30g)', 30, 'g', 120, 24, 3, 1.5, 'Supplementi'],
+    ['Creatina monoidrato (5g)', 5, 'g', 0, 0, 0, 0, 'Supplementi'],
+    ['Albumina in polvere (30g)', 30, 'g', 110, 26, 0.5, 0.5, 'Supplementi'],
+  ];
+
+  for (const [name, portion, unit, cal, pro, carb, fat, cat] of foods) {
+    const exists = await db.getFirstAsync('SELECT id FROM food_database WHERE name = ?', [name]);
+    if (!exists) {
+      await db.runAsync(
+        'INSERT INTO food_database (name, portion, unit, calories, protein_g, carbs_g, fats_g, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [name, portion, unit, cal, pro, carb, fat, cat]
+      );
+    }
+  }
+}
+
 // ─── Training Day Helpers ─────────────────────────────────────────────────────
 
 export async function getProfile(db) {
@@ -369,8 +489,11 @@ export async function getTrainingDayForDate(db, date) {
     if (override.training_day_id === null) return null;
     return db.getFirstAsync('SELECT * FROM training_days WHERE id = ?', [override.training_day_id]);
   }
+  const profile = await db.getFirstAsync('SELECT schedule_offset FROM profile WHERE id = 1');
+  const offset = profile?.schedule_offset ?? 0;
   const dow = (date.getDay() + 6) % 7;
-  return db.getFirstAsync('SELECT * FROM training_days WHERE day_of_week = ?', [dow]);
+  const lookupDow = (dow - offset + 7) % 7;
+  return db.getFirstAsync('SELECT * FROM training_days WHERE day_of_week = ?', [lookupDow]);
 }
 
 export async function skipTrainingDay(db, date) {
@@ -552,10 +675,12 @@ export async function getWaterForDate(db, dateStr) {
 }
 
 export async function setWaterGlasses(db, dateStr, glasses) {
-  await db.runAsync(
-    'INSERT OR REPLACE INTO water_log (date, glasses) VALUES (?, ?)',
-    [dateStr, glasses]
-  );
+  const existing = await db.getFirstAsync('SELECT id FROM water_log WHERE date = ?', [dateStr]);
+  if (existing) {
+    await db.runAsync('UPDATE water_log SET glasses = ? WHERE id = ?', [glasses, existing.id]);
+  } else {
+    await db.runAsync('INSERT INTO water_log (date, glasses) VALUES (?, ?)', [dateStr, glasses]);
+  }
 }
 
 // ─── Progress ─────────────────────────────────────────────────────────────────

@@ -67,6 +67,7 @@ export default function SettingsScreen() {
       notification_evening_hour: p.notification_evening_hour?.toString(),
       notification_evening_minute: p.notification_evening_minute?.toString().padStart(2, '0'),
       notifications_enabled: p.notifications_enabled === 1,
+      schedule_offset: p.schedule_offset ?? 0,
     });
   }
 
@@ -115,13 +116,14 @@ export default function SettingsScreen() {
         notification_evening_hour: parseInt(form.notification_evening_hour) || 20,
         notification_evening_minute: parseInt(form.notification_evening_minute) || 0,
         notifications_enabled: form.notifications_enabled ? 1 : 0,
+        schedule_offset: form.schedule_offset ?? 0,
       };
       await updateProfile(db, updates);
 
       if (form.notifications_enabled) {
         const granted = await requestPermissions();
         if (granted) {
-          await scheduleWorkoutNotifications(updates.notification_morning_hour, updates.notification_morning_minute);
+          await scheduleWorkoutNotifications(updates.notification_morning_hour, updates.notification_morning_minute, updates.schedule_offset);
           await scheduleEveningReminder(updates.notification_evening_hour, updates.notification_evening_minute);
           await scheduleWaterReminders();
           Alert.alert('Salvato', 'Profilo e notifiche aggiornati.');
@@ -214,6 +216,32 @@ export default function SettingsScreen() {
         )}
       </Section>
 
+      <Section title="CALENDARIO ALLENAMENTI">
+        <View style={styles.offsetRow}>
+          <Text style={styles.rowLabel}>Slittamento settimana</Text>
+          <View style={styles.offsetControl}>
+            <TouchableOpacity
+              style={styles.offsetBtn}
+              onPress={() => field('schedule_offset', Math.max(0, (form.schedule_offset ?? 0) - 1))}
+            >
+              <Text style={styles.offsetBtnText}>−</Text>
+            </TouchableOpacity>
+            <Text style={styles.offsetValue}>{form.schedule_offset ?? 0}</Text>
+            <TouchableOpacity
+              style={styles.offsetBtn}
+              onPress={() => field('schedule_offset', Math.min(6, (form.schedule_offset ?? 0) + 1))}
+            >
+              <Text style={styles.offsetBtnText}>+</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <Text style={styles.offsetHint}>
+          Giorni di anticipo del calendario.{'\n'}
+          0 = Lun Petto, Mar Schiena, Mer Spalle…{'\n'}
+          1 = Mar Petto, Mer Schiena, Gio Spalle…
+        </Text>
+      </Section>
+
       <TouchableOpacity
         style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
         onPress={handleSave}
@@ -271,6 +299,26 @@ const styles = StyleSheet.create({
     color: COLORS.text, fontSize: 18, textAlign: 'center', fontWeight: '700',
   },
   timeSep: { fontSize: 20, color: COLORS.text, marginHorizontal: 8, fontWeight: '700' },
+
+  offsetRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  offsetControl: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: COLORS.border, borderRadius: 8, overflow: 'hidden',
+  },
+  offsetBtn: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
+  offsetBtnText: { fontSize: 20, color: COLORS.text, fontWeight: '500' },
+  offsetValue: {
+    width: 36, textAlign: 'center', fontSize: 18,
+    color: COLORS.text, fontWeight: '700',
+  },
+  offsetHint: {
+    fontSize: 12, color: COLORS.textSecondary, lineHeight: 18,
+    paddingHorizontal: 16, paddingVertical: 12,
+  },
 
   saveBtn: {
     backgroundColor: COLORS.accent, borderRadius: 14, padding: 16, alignItems: 'center', marginBottom: 16,

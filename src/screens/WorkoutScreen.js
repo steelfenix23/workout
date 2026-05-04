@@ -494,12 +494,23 @@ export default function WorkoutScreen() {
       setSession(sess);
       setLastSets([]);
       const map = {};
+      const isPast = iso <= todayIso;
       if (sess) {
         const allSets = await getSetsForSession(db, sess.id);
         for (const ex of exs) {
           map[ex.exercise_id] = allSets
             .filter(s => s.exercise_id === ex.exercise_id)
-            .map(s => ({ ...s, weight_kg: s.weight_kg?.toString() ?? '', reps: s.reps?.toString() ?? '' }));
+            .map(s => ({ ...s, weight_kg: s.weight_kg?.toString() ?? '', reps: s.reps?.toString() ?? '', rpe: s.rpe?.toString() ?? '' }));
+        }
+      } else if (isPast) {
+        for (const ex of exs) {
+          map[ex.exercise_id] = Array.from({ length: ex.target_sets }, (_, i) => ({
+            set_number: i + 1,
+            exercise_id: ex.exercise_id,
+            weight_kg: '',
+            reps: '',
+            rpe: '',
+          }));
         }
       } else {
         for (const ex of exs) map[ex.exercise_id] = [];
@@ -536,54 +547,59 @@ export default function WorkoutScreen() {
   }
 
   async function saveAll() {
-    if (!session) return;
     setSaving(true);
     try {
+      let sess = session;
+      if (!sess) {
+        if (!trainingDay || viewIso() > todayIso) return null;
+        sess = await getOrCreateSession(db, trainingDay.id, viewIso());
+        setSession(sess);
+      }
       for (const [eidStr, sets] of Object.entries(setsMap)) {
         const eid = Number(eidStr);
         const existing = await db.getAllAsync(
           'SELECT set_number FROM workout_sets WHERE session_id = ? AND exercise_id = ?',
-          [session.id, eid]
+          [sess.id, eid]
         );
         for (const row of existing) {
           if (!sets.find(s => s.set_number === row.set_number)) {
-            await deleteSet(db, session.id, eid, row.set_number);
+            await deleteSet(db, sess.id, eid, row.set_number);
           }
         }
         for (const s of sets) {
           const w = parseFloat(s.weight_kg) || 0;
           const r = parseInt(s.reps) || 0;
           const rpe = s.rpe ? parseFloat(s.rpe) : null;
-          if (r > 0) await upsertSet(db, session.id, eid, s.set_number, w, r, rpe);
+          if (r > 0) await upsertSet(db, sess.id, eid, s.set_number, w, r, rpe);
         }
       }
+      return sess;
     } finally {
       setSaving(false);
     }
   }
 
   async function handleComplete() {
-    await saveAll();
+    const sess = await saveAll();
+    if (!sess) return;
 
-    // Compute volume
     const currentVolume = Object.values(setsMap).flat()
       .reduce((sum, s) => sum + (parseFloat(s.weight_kg) || 0) * (parseInt(s.reps) || 0), 0);
     const lastVolume = lastSets.reduce((sum, s) => sum + (s.weight_kg || 0) * (s.reps || 0), 0);
 
-    // Detect PRs (all-time, excluding current session which is already saved)
     const prs = [];
     for (const ex of exercises) {
       const eid = ex.exercise_id;
       const curSets = (setsMap[eid] || []).filter(s => parseFloat(s.weight_kg) > 0);
       if (!curSets.length) continue;
       const curMax = Math.max(...curSets.map(s => parseFloat(s.weight_kg) || 0));
-      const histMax = await getExerciseMaxWeightExcluding(db, eid, session.id);
+      const histMax = await getExerciseMaxWeightExcluding(db, eid, sess.id);
       if (curMax > histMax) {
         prs.push({ name: ex.name, weight: curMax, prevMax: histMax });
       }
     }
 
-    await completeSession(db, session.id);
+    await completeSession(db, sess.id);
     setSession(prev => ({ ...prev, completed: 1 }));
     setSummary({ volume: currentVolume, lastVolume, prs });
   }
@@ -591,6 +607,7 @@ export default function WorkoutScreen() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   const viewing = isViewingToday();
+  const editMode = viewIso() <= todayIso;
 
   function renderDateNav() {
     return (
@@ -694,10 +711,11 @@ export default function WorkoutScreen() {
           </View>
         )}
 
-        {!viewing && !session && (
-          <Text style={styles.readOnlyBadge}>
-            {viewDate > new Date() ? 'Programma previsto' : 'Sessione non registrata'}
-          </Text>
+        {!editMode && (
+          <Text style={styles.readOnlyBadge}>Programma previsto</Text>
+        )}
+        {editMode && !viewing && !session && (
+          <Text style={styles.readOnlyBadge}>Sessione non registrata — inserisci i dati e salva</Text>
         )}
 
         {exercises.map(ex => (
@@ -707,7 +725,7 @@ export default function WorkoutScreen() {
             delayLongPress={400}
             activeOpacity={1}
           >
-            {viewing ? (
+            {editMode ? (
               <ExerciseCard
                 exercise={ex}
                 sets={setsMap[ex.exercise_id] ?? []}
@@ -723,7 +741,7 @@ export default function WorkoutScreen() {
           </TouchableOpacity>
         ))}
 
-        {viewing && (
+        {editMode && (
           <View style={styles.actions}>
             <TouchableOpacity
               style={[styles.saveBtn, saving && styles.btnDisabled]}
@@ -740,7 +758,7 @@ export default function WorkoutScreen() {
           </View>
         )}
 
-        {viewing && (
+        {editMode && (
           <Text style={styles.hint}>Tieni premuto un esercizio per istruzioni e storico</Text>
         )}
       </ScrollView>

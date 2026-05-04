@@ -29,7 +29,7 @@ function iosWeekday(dow) {
   return ((dow + 1) % 7) + 1;
 }
 
-export async function scheduleWorkoutNotifications(hour, minute) {
+export async function scheduleWorkoutNotifications(hour, minute, scheduleOffset = 0) {
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   for (const n of scheduled) {
     if (n.content.data?.type === 'workout') {
@@ -43,6 +43,7 @@ export async function scheduleWorkoutNotifications(hour, minute) {
     const body = isRest
       ? 'Oggi: Recupero Attivo. Tapis roulant o riposo, ascolta il tuo corpo.'
       : `Oggi: ${name} 💪 Dai, si parte!`;
+    const actualDow = (dow + (scheduleOffset ?? 0)) % 7;
 
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -52,7 +53,7 @@ export async function scheduleWorkoutNotifications(hour, minute) {
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-        weekday: iosWeekday(dow),
+        weekday: iosWeekday(actualDow),
         hour,
         minute,
       },
