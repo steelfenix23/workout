@@ -13,23 +13,13 @@ export async function requestPermissions() {
   return status === 'granted';
 }
 
-const DAY_NAMES = [
-  'Petto + Tricipiti',
-  'Schiena + Bicipiti',
-  'Spalle + Core',
-  'Gambe',
-  'Recupero Attivo',
-  'Riposo',
-  'Riposo',
-];
-
-// iOS weekday: 1=Sun, 2=Mon, ... 7=Sat
-// Our dow: 0=Mon ... 6=Sun
+// iOS weekday: 1=Sun, 2=Mon, ... 7=Sat  /  our dow: 0=Mon ... 6=Sun
 function iosWeekday(dow) {
   return ((dow + 1) % 7) + 1;
 }
 
-export async function scheduleWorkoutNotifications(hour, minute, scheduleOffset = 0) {
+// weeklySchedule: array of { day_of_week, name, is_rest_day } from getWeeklySchedule()
+export async function scheduleWorkoutNotifications(hour, minute, weeklySchedule = []) {
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   for (const n of scheduled) {
     if (n.content.data?.type === 'workout') {
@@ -37,23 +27,22 @@ export async function scheduleWorkoutNotifications(hour, minute, scheduleOffset 
     }
   }
 
-  for (let dow = 0; dow <= 4; dow++) {
-    const name = DAY_NAMES[dow];
-    const isRest = dow === 4;
-    const body = isRest
+  for (const { day_of_week, name, is_rest_day } of weeklySchedule) {
+    if (!name || name === 'Riposo') continue;
+    const isRecovery = name === 'Recupero Attivo';
+    const body = isRecovery
       ? 'Oggi: Recupero Attivo. Tapis roulant o riposo, ascolta il tuo corpo.'
       : `Oggi: ${name} 💪 Dai, si parte!`;
-    const actualDow = (dow + (scheduleOffset ?? 0)) % 7;
 
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: isRest ? 'Giorno di recupero' : 'È ora di allenarsi!',
+        title: isRecovery ? 'Giorno di recupero' : 'È ora di allenarsi!',
         body,
-        data: { type: 'workout', dow },
+        data: { type: 'workout', dow: day_of_week },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-        weekday: iosWeekday(actualDow),
+        weekday: iosWeekday(day_of_week),
         hour,
         minute,
       },

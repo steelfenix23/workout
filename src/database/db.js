@@ -144,6 +144,24 @@ export async function initDatabase(db) {
     await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seed_version', '4')");
   }
 
+  if (currentVersion < 5) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS weekly_schedule (
+        day_of_week INTEGER PRIMARY KEY,
+        training_day_id INTEGER,
+        FOREIGN KEY (training_day_id) REFERENCES training_days(id)
+      )
+    `);
+    const tds = await db.getAllAsync('SELECT id, day_of_week FROM training_days');
+    for (const td of tds) {
+      await db.runAsync(
+        'INSERT OR IGNORE INTO weekly_schedule (day_of_week, training_day_id) VALUES (?, ?)',
+        [td.day_of_week, td.id]
+      );
+    }
+    await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seed_version', '5')");
+  }
+
   const profileExists = await db.getFirstAsync('SELECT id FROM profile WHERE id = 1');
   if (!profileExists) {
     await db.runAsync(
@@ -489,11 +507,38 @@ export async function getTrainingDayForDate(db, date) {
     if (override.training_day_id === null) return null;
     return db.getFirstAsync('SELECT * FROM training_days WHERE id = ?', [override.training_day_id]);
   }
-  const profile = await db.getFirstAsync('SELECT schedule_offset FROM profile WHERE id = 1');
-  const offset = profile?.schedule_offset ?? 0;
-  const dow = (date.getDay() + 6) % 7;
-  const lookupDow = (dow - offset + 7) % 7;
-  return db.getFirstAsync('SELECT * FROM training_days WHERE day_of_week = ?', [lookupDow]);
+  const dow = (date.getDay() + 6) % 7; // Mon=0 … Sun=6
+  const entry = await db.getFirstAsync(
+    'SELECT training_day_id FROM weekly_schedule WHERE day_of_week = ?',
+    [dow]
+  );
+  if (!entry || entry.training_day_id === null) return null;
+  return db.getFirstAsync('SELECT * FROM training_days WHERE id = ?', [entry.training_day_id]);
+}
+
+export async function getWeeklySchedule(db) {
+  return db.getAllAsync(
+    `SELECT ws.day_of_week, ws.training_day_id, td.name, td.is_rest_day
+     FROM weekly_schedule ws
+     LEFT JOIN training_days td ON td.id = ws.training_day_id
+     ORDER BY ws.day_of_week`
+  );
+}
+
+export async function getTrainingDayOptions(db) {
+  return db.getAllAsync(
+    `SELECT MIN(id) as id, name, is_rest_day
+     FROM training_days
+     GROUP BY name
+     ORDER BY is_rest_day, MIN(id)`
+  );
+}
+
+export async function setWeeklyScheduleDay(db, dow, trainingDayId) {
+  await db.runAsync(
+    'INSERT OR REPLACE INTO weekly_schedule (day_of_week, training_day_id) VALUES (?, ?)',
+    [dow, trainingDayId]
+  );
 }
 
 export async function skipTrainingDay(db, date) {

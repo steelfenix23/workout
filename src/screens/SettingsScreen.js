@@ -1,11 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Switch, Alert,
+  StyleSheet, Switch, Alert, Modal,
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
-import { getProfile, updateProfile, todayStr } from '../database/db';
+import {
+  getProfile, updateProfile, todayStr,
+  getWeeklySchedule, getTrainingDayOptions, setWeeklyScheduleDay,
+} from '../database/db';
 import {
   requestPermissions, scheduleWorkoutNotifications,
   scheduleEveningReminder, scheduleWaterReminders, cancelAllNotifications,
@@ -39,11 +42,16 @@ function Section({ title, children }) {
   );
 }
 
+const DOW_NAMES = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+
 export default function SettingsScreen() {
   const db = useSQLiteContext();
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [weeklySchedule, setWeeklySchedule] = useState([]);
+  const [tdOptions, setTdOptions] = useState([]);
+  const [pickerDow, setPickerDow] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -52,8 +60,14 @@ export default function SettingsScreen() {
   );
 
   async function loadProfile() {
-    const p = await getProfile(db);
+    const [p, sched, opts] = await Promise.all([
+      getProfile(db),
+      getWeeklySchedule(db),
+      getTrainingDayOptions(db),
+    ]);
     setProfile(p);
+    setWeeklySchedule(sched);
+    setTdOptions(opts);
     setForm({
       weight_kg: p.weight_kg?.toString(),
       height_cm: p.height_cm?.toString(),
@@ -67,8 +81,18 @@ export default function SettingsScreen() {
       notification_evening_hour: p.notification_evening_hour?.toString(),
       notification_evening_minute: p.notification_evening_minute?.toString().padStart(2, '0'),
       notifications_enabled: p.notifications_enabled === 1,
-      schedule_offset: p.schedule_offset ?? 0,
     });
+  }
+
+  async function handleDayChange(dow, tdId) {
+    await setWeeklyScheduleDay(db, dow, tdId);
+    const opt = tdOptions.find(o => o.id === tdId);
+    setWeeklySchedule(prev => prev.map(d =>
+      d.day_of_week === dow
+        ? { ...d, training_day_id: tdId, name: opt?.name, is_rest_day: opt?.is_rest_day }
+        : d
+    ));
+    setPickerDow(null);
   }
 
   function field(key, value) {
@@ -116,14 +140,14 @@ export default function SettingsScreen() {
         notification_evening_hour: parseInt(form.notification_evening_hour) || 20,
         notification_evening_minute: parseInt(form.notification_evening_minute) || 0,
         notifications_enabled: form.notifications_enabled ? 1 : 0,
-        schedule_offset: form.schedule_offset ?? 0,
       };
       await updateProfile(db, updates);
 
       if (form.notifications_enabled) {
         const granted = await requestPermissions();
         if (granted) {
-          await scheduleWorkoutNotifications(updates.notification_morning_hour, updates.notification_morning_minute, updates.schedule_offset);
+          const sched = await getWeeklySchedule(db);
+          await scheduleWorkoutNotifications(updates.notification_morning_hour, updates.notification_morning_minute, sched);
           await scheduleEveningReminder(updates.notification_evening_hour, updates.notification_evening_minute);
           await scheduleWaterReminders();
           Alert.alert('Salvato', 'Profilo e notifiche aggiornati.');
@@ -217,29 +241,22 @@ export default function SettingsScreen() {
       </Section>
 
       <Section title="CALENDARIO ALLENAMENTI">
-        <View style={styles.offsetRow}>
-          <Text style={styles.rowLabel}>Slittamento settimana</Text>
-          <View style={styles.offsetControl}>
-            <TouchableOpacity
-              style={styles.offsetBtn}
-              onPress={() => field('schedule_offset', Math.max(0, (form.schedule_offset ?? 0) - 1))}
-            >
-              <Text style={styles.offsetBtnText}>−</Text>
+        {DOW_NAMES.map((dayName, dow) => {
+          const entry = weeklySchedule.find(d => d.day_of_week === dow);
+          const label = entry?.name ?? '—';
+          const isRest = !entry || entry.is_rest_day;
+          return (
+            <TouchableOpacity key={dow} style={styles.schedRow} onPress={() => setPickerDow(dow)}>
+              <Text style={styles.schedDay}>{dayName}</Text>
+              <View style={styles.schedRight}>
+                <Text style={[styles.schedName, isRest && styles.schedNameRest]} numberOfLines={1}>
+                  {label}
+                </Text>
+                <Text style={styles.schedArrow}>›</Text>
+              </View>
             </TouchableOpacity>
-            <Text style={styles.offsetValue}>{form.schedule_offset ?? 0}</Text>
-            <TouchableOpacity
-              style={styles.offsetBtn}
-              onPress={() => field('schedule_offset', Math.min(6, (form.schedule_offset ?? 0) + 1))}
-            >
-              <Text style={styles.offsetBtnText}>+</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        <Text style={styles.offsetHint}>
-          Giorni di anticipo del calendario.{'\n'}
-          0 = Lun Petto, Mar Schiena, Mer Spalle…{'\n'}
-          1 = Mar Petto, Mer Schiena, Gio Spalle…
-        </Text>
+          );
+        })}
       </Section>
 
       <TouchableOpacity
@@ -252,6 +269,32 @@ export default function SettingsScreen() {
 
       <Text style={styles.version}>Workout App v1.0 — uso personale</Text>
     </ScrollView>
+
+    {pickerDow !== null && (
+      <Modal transparent animationType="fade" onRequestClose={() => setPickerDow(null)}>
+        <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setPickerDow(null)}>
+          <TouchableOpacity activeOpacity={1} style={styles.pickerBox}>
+            <Text style={styles.pickerTitle}>{DOW_NAMES[pickerDow]}</Text>
+            {tdOptions.map(opt => {
+              const current = weeklySchedule.find(d => d.day_of_week === pickerDow);
+              const isSelected = current?.training_day_id === opt.id;
+              return (
+                <TouchableOpacity
+                  key={opt.id}
+                  style={[styles.pickerOption, isSelected && styles.pickerOptionSelected]}
+                  onPress={() => handleDayChange(pickerDow, opt.id)}
+                >
+                  <Text style={[styles.pickerOptionText, isSelected && styles.pickerOptionTextSelected]}>
+                    {opt.name}
+                  </Text>
+                  {isSelected && <Text style={styles.pickerCheck}>✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    )}
   );
 }
 
@@ -300,25 +343,38 @@ const styles = StyleSheet.create({
   },
   timeSep: { fontSize: 20, color: COLORS.text, marginHorizontal: 8, fontWeight: '700' },
 
-  offsetRow: {
+  schedRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
+    paddingHorizontal: 16, paddingVertical: 13,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
-  offsetControl: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.border, borderRadius: 8, overflow: 'hidden',
+  schedDay: { fontSize: 15, color: COLORS.text, width: 90 },
+  schedRight: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
+  schedName: { fontSize: 14, color: COLORS.accent, fontWeight: '600', flexShrink: 1, marginRight: 6 },
+  schedNameRest: { color: COLORS.textSecondary, fontWeight: '400' },
+  schedArrow: { fontSize: 20, color: COLORS.textSecondary, fontWeight: '300' },
+
+  pickerOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center', alignItems: 'center', padding: 32,
   },
-  offsetBtn: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
-  offsetBtnText: { fontSize: 20, color: COLORS.text, fontWeight: '500' },
-  offsetValue: {
-    width: 36, textAlign: 'center', fontSize: 18,
-    color: COLORS.text, fontWeight: '700',
+  pickerBox: {
+    backgroundColor: COLORS.card, borderRadius: 16,
+    width: '100%', overflow: 'hidden',
   },
-  offsetHint: {
-    fontSize: 12, color: COLORS.textSecondary, lineHeight: 18,
-    paddingHorizontal: 16, paddingVertical: 12,
+  pickerTitle: {
+    fontSize: 14, fontWeight: '700', color: COLORS.textSecondary,
+    letterSpacing: 1.1, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 10,
   },
+  pickerOption: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 15,
+    borderTopWidth: 1, borderTopColor: COLORS.border,
+  },
+  pickerOptionSelected: { backgroundColor: COLORS.bg },
+  pickerOptionText: { fontSize: 16, color: COLORS.text },
+  pickerOptionTextSelected: { color: COLORS.accent, fontWeight: '700' },
+  pickerCheck: { fontSize: 16, color: COLORS.accent, fontWeight: '700' },
 
   saveBtn: {
     backgroundColor: COLORS.accent, borderRadius: 14, padding: 16, alignItems: 'center', marginBottom: 16,
