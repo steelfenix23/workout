@@ -167,6 +167,7 @@ export default function SettingsScreen() {
   if (!form.weight_kg) return null;
 
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.screenTitle}>Impostazioni</Text>
 
@@ -295,6 +296,7 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </Modal>
     )}
+    </View>
   );
 }
 
