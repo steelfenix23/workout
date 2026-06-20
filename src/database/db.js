@@ -189,6 +189,12 @@ export async function initDatabase(db) {
     await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seed_version', '7')");
   }
 
+  if (currentVersion < 8) {
+    // Nuova scheda Upper/Lower 4 giorni + 3 nuovi esercizi.
+    await seedProgramV8(db);
+    await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seed_version', '8')");
+  }
+
   const profileExists = await db.getFirstAsync('SELECT id FROM profile WHERE id = 1');
   if (!profileExists) {
     await db.runAsync(
@@ -948,6 +954,109 @@ async function seedExerciseDetails(db) {
        WHERE name = ?`,
       [prim, sec, JSON.stringify(steps), JSON.stringify(mistakes), tempo, yt(query), name]
     );
+  }
+}
+
+// ─── Programma Upper/Lower (v8) ──────────────────────────────────────────────
+
+async function seedProgramV8(db) {
+  const yt = q => 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
+
+  // 1) Nuovi esercizi con scheda completa (inseriti solo se non esistono).
+  // [name, muscle_group, equipment, instructions, primari, secondari, [step], [errori], tempo, query]
+  const newExercises = [
+    ['Stacco Rumeno con Manubri', 'Femorali / Glutei', 'Manubri',
+      'Movimento d\'anca (hip hinge) per femorali e glutei: spingi i fianchi indietro mantenendo la schiena neutra e le gambe quasi tese.',
+      'Femorali, glutei', 'Lombari (erettori spinali), trapezio',
+      ['In piedi, un manubrio per mano davanti alle cosce, piedi a larghezza anche.',
+       'Spingi i fianchi indietro con schiena neutra e ginocchia appena flesse (fisse).',
+       'Fai scorrere i manubri lungo le gambe fino a sentire lo stretch sui femorali (circa metà stinco).',
+       'Risali spingendo i fianchi in avanti e contraendo i glutei in cima.'],
+      ['Curvare la schiena: deve restare neutra.', 'Piegare le ginocchia come in uno squat.', 'Allontanare i manubri dalle gambe.'],
+      '2-3s discesa · 1s risalita · è un movimento d\'anca, non di ginocchio', 'stacco rumeno manubri tecnica'],
+    ['Bulgarian Split Squat', 'Quadricipiti / Glutei', 'Manubri + panca/rialzo',
+      'Affondo bulgaro col piede posteriore appoggiato in alto: carica molto la gamba anteriore con poco peso, ideale a casa.',
+      'Quadricipiti, glutei', 'Femorali, adduttori, core',
+      ['Appoggia il collo del piede posteriore su una panca/rialzo dietro di te.',
+       'Un manubrio per mano ai fianchi, piede anteriore avanzato alla distanza giusta.',
+       'Scendi piegando la gamba anteriore fino a coscia parallela, busto leggermente in avanti.',
+       'Spingi con il tallone anteriore per risalire. Completa le reps, poi cambia gamba.'],
+      ['Passo troppo corto (sovraccarica il ginocchio).', 'Spingere con la gamba posteriore.', 'Perdere l\'equilibrio: tieni il core attivo.'],
+      '2s discesa · 1s risalita', 'bulgarian split squat manubri tecnica'],
+    ['Alzate Posteriori', 'Deltoide posteriore', 'Manubri',
+      'Alzate ad arco col busto inclinato per il deltoide posteriore, fondamentali per bilanciare le tante spinte e alzate frontali.',
+      'Deltoide posteriore', 'Trapezio medio, romboidi',
+      ['Busto inclinato in avanti a ~45° (o seduto sul bordo della panca), manubri sotto il petto.',
+       'Braccia leggermente piegate e fisse.',
+       'Apri le braccia di lato portando i manubri all\'altezza delle spalle, stringendo le scapole.',
+       'Scendi lento controllando il movimento.'],
+      ['Usare troppo peso e slancio.', 'Tirare con le braccia (curl) invece di aprire.', 'Scrollare le spalle verso le orecchie.'],
+      '1s apertura · 2s ritorno · carico leggero', 'alzate posteriori manubri deltoide posteriore'],
+  ];
+  for (const [name, mg, eq, instr, prim, sec, steps, mistakes, tempo, query] of newExercises) {
+    const exists = await db.getFirstAsync('SELECT id FROM exercises WHERE name = ?', [name]);
+    if (!exists) {
+      await db.runAsync(
+        `INSERT INTO exercises (name, muscle_group, equipment, instructions, primary_muscles, secondary_muscles, steps, mistakes, tempo, video_url)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [name, mg, eq, instr, prim, sec, JSON.stringify(steps), JSON.stringify(mistakes), tempo, yt(query)]
+      );
+    }
+  }
+
+  // 2) Rinomina i 4 giorni di allenamento (riusa id 1-4: lo storico sessioni resta valido).
+  const dayNames = [[1, 'Upper A'], [2, 'Lower A'], [3, 'Upper B'], [4, 'Lower B']];
+  for (const [id, name] of dayNames) {
+    await db.runAsync('UPDATE training_days SET name = ?, is_rest_day = 0 WHERE id = ?', [name, id]);
+  }
+
+  // 3) Ricostruisce il piano esercizi.
+  // [training_day_id, exerciseName, order, sets, repsMin, repsMax, suggestedWeight]
+  const plan = [
+    // UPPER A
+    [1, 'Panca Piana con Manubri', 1, 4, 6, 10, 23],
+    [1, 'Trazioni alla Sbarra', 2, 4, 5, 8, 0],
+    [1, 'Shoulder Press con Manubri', 3, 3, 8, 12, 13],
+    [1, 'Rematore con Manubri', 4, 3, 8, 12, 13],
+    [1, 'Alzate Laterali', 5, 3, 12, 20, 8],
+    [1, 'Curl Classico con Manubri', 6, 3, 10, 15, 8],
+    // LOWER A
+    [2, 'Goblet Squat', 1, 4, 8, 12, 21],
+    [2, 'Stacco Rumeno con Manubri', 2, 3, 8, 12, 16],
+    [2, 'Affondi con Manubri', 3, 3, 10, 12, 10],
+    [2, 'Calf Raise', 4, 4, 12, 20, 0],
+    [2, 'Plank', 5, 3, 30, 60, 0],
+    // UPPER B
+    [3, 'Panca Inclinata 30° - Spinte', 1, 4, 8, 12, 14],
+    [3, 'Dips alle Parallele', 2, 3, 8, 12, 0],
+    [3, 'Rematore con Manubri', 3, 4, 6, 10, 14],
+    [3, 'Alzate Posteriori', 4, 3, 15, 20, 6],
+    [3, 'Alzate Laterali', 5, 3, 12, 20, 8],
+    [3, 'Curl a Martello', 6, 3, 10, 15, 8],
+    // LOWER B
+    [4, 'Bulgarian Split Squat', 1, 4, 8, 12, 10],
+    [4, 'Stacco Rumeno con Manubri', 2, 3, 8, 12, 16],
+    [4, 'Goblet Squat', 3, 3, 10, 15, 18],
+    [4, 'Calf Raise', 4, 4, 12, 20, 0],
+    [4, 'Crunch', 5, 3, 15, 20, 0],
+  ];
+  await db.execAsync('DELETE FROM training_day_exercises;');
+  for (const [tdId, name, ord, sets, rMin, rMax, sugW] of plan) {
+    const ex = await db.getFirstAsync('SELECT id FROM exercises WHERE name = ?', [name]);
+    if (!ex) continue;
+    await db.runAsync(
+      `INSERT INTO training_day_exercises
+       (training_day_id, exercise_id, order_index, target_sets, target_reps_min, target_reps_max, suggested_weight)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [tdId, ex.id, ord, sets, rMin, rMax, sugW]
+    );
+  }
+
+  // 4) Calendario di default (4 giorni, modificabile dall'utente).
+  // Lun=UpperA, Mar=LowerA, Mer=riposo, Gio=UpperB, Ven=LowerB, Sab=recupero, Dom=riposo
+  const schedule = [[0, 1], [1, 2], [2, 6], [3, 3], [4, 4], [5, 5], [6, 6]];
+  for (const [dow, tdId] of schedule) {
+    await db.runAsync('INSERT OR REPLACE INTO weekly_schedule (day_of_week, training_day_id) VALUES (?, ?)', [dow, tdId]);
   }
 }
 
