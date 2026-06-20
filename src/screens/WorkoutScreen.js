@@ -14,7 +14,8 @@ import {
 } from '../database/db';
 import { COLORS } from '../theme';
 
-const WEIGHT_STEP = 2.5;
+const WEIGHT_STEP = 1.5;   // scatti dei manubri regolabili
+const MIN_WEIGHT = 4;      // peso minimo di un manubrio
 const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
 const MONTH_NAMES = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
@@ -50,7 +51,15 @@ function SetRow({ set, onChange, onDelete, isBodyweight }) {
 
   function adjustWeight(delta) {
     const current = parseFloat(set.weight_kg) || 0;
-    const next = Math.max(0, Math.round((current + delta) * 10) / 10);
+    let next;
+    if (delta > 0) {
+      // dal vuoto/sotto il minimo si parte da 4kg, poi scatti da 1.5kg
+      next = current < MIN_WEIGHT ? MIN_WEIGHT : current + WEIGHT_STEP;
+    } else {
+      next = current - WEIGHT_STEP;
+      if (next < MIN_WEIGHT) next = 0; // sotto il minimo del manubrio → vuoto
+    }
+    next = Math.round(next * 10) / 10;
     onChange({ ...set, weight_kg: next === 0 ? '' : next.toString() });
   }
 

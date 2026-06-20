@@ -50,26 +50,14 @@ export async function scheduleWorkoutNotifications(hour, minute, weeklySchedule 
   }
 }
 
-export async function scheduleEveningReminder(hour, minute) {
+// Rimuove le vecchie notifiche serali "nutrizione" rimaste sui device già installati.
+export async function cancelEveningReminders() {
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   for (const n of scheduled) {
     if (n.content.data?.type === 'evening') {
       await Notifications.cancelScheduledNotificationAsync(n.identifier);
     }
   }
-
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Nutrizione serale 🥗',
-      body: 'Hai raggiunto i tuoi macro di oggi? Controlla il log.',
-      data: { type: 'evening' },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
-    },
-  });
 }
 
 const WATER_SCHEDULE = [

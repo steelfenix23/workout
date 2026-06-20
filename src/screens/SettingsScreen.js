@@ -13,7 +13,7 @@ import {
 } from '../database/db';
 import {
   requestPermissions, scheduleWorkoutNotifications,
-  scheduleEveningReminder, scheduleWaterReminders, cancelAllNotifications,
+  scheduleWaterReminders, cancelAllNotifications,
 } from '../notifications/scheduler';
 import { COLORS } from '../theme';
 
@@ -102,31 +102,6 @@ export default function SettingsScreen() {
     setForm(prev => ({ ...prev, [key]: value }));
   }
 
-  function calcTDEE() {
-    const w = parseFloat(form.weight_kg) || 74;
-    const h = parseFloat(form.height_cm) || 185;
-    const a = parseInt(form.age) || 28;
-    // Mifflin-St. Jeor (male) × moderately active (1.55)
-    const bmr = 10 * w + 6.25 * h - 5 * a + 5;
-    return Math.round(bmr * 1.55);
-  }
-
-  function applyTDEEBulk() {
-    const tdee = calcTDEE();
-    const target = tdee + 300;
-    const protein = Math.round(parseFloat(form.weight_kg || 74) * 2.1);
-    const fats = Math.round(target * 0.25 / 9);
-    const carbs = Math.round((target - protein * 4 - fats * 9) / 4);
-    field('target_calories', target.toString());
-    field('target_protein', protein.toString());
-    field('target_carbs', carbs.toString());
-    field('target_fats', fats.toString());
-    Alert.alert(
-      'Macro aggiornati',
-      `TDEE stimato: ${tdee} kcal\nTarget bulk (+300): ${target} kcal\n\nP: ${protein}g  C: ${carbs}g  G: ${fats}g`
-    );
-  }
-
   async function handleSave() {
     setSaving(true);
     try {
@@ -134,14 +109,8 @@ export default function SettingsScreen() {
         weight_kg: parseFloat(form.weight_kg) || 74,
         height_cm: parseFloat(form.height_cm) || 185,
         age: parseInt(form.age) || 28,
-        target_calories: parseInt(form.target_calories) || 3200,
-        target_protein: parseInt(form.target_protein) || 155,
-        target_carbs: parseInt(form.target_carbs) || 380,
-        target_fats: parseInt(form.target_fats) || 85,
         notification_morning_hour: parseInt(form.notification_morning_hour) || 8,
         notification_morning_minute: parseInt(form.notification_morning_minute) || 0,
-        notification_evening_hour: parseInt(form.notification_evening_hour) || 20,
-        notification_evening_minute: parseInt(form.notification_evening_minute) || 0,
         notifications_enabled: form.notifications_enabled ? 1 : 0,
       };
       await updateProfile(db, updates);
@@ -151,7 +120,6 @@ export default function SettingsScreen() {
         if (granted) {
           const sched = await getWeeklySchedule(db);
           await scheduleWorkoutNotifications(updates.notification_morning_hour, updates.notification_morning_minute, sched);
-          await scheduleEveningReminder(updates.notification_evening_hour, updates.notification_evening_minute);
           await scheduleWaterReminders();
           Alert.alert('Salvato', 'Profilo e notifiche aggiornati.');
         } else {
@@ -192,18 +160,6 @@ export default function SettingsScreen() {
         <Row label="Peso" value={form.weight_kg} onChangeText={v => field('weight_kg', v)} keyboardType="decimal-pad" unit="kg" />
         <Row label="Altezza" value={form.height_cm} onChangeText={v => field('height_cm', v)} keyboardType="decimal-pad" unit="cm" />
         <Row label="Età" value={form.age} onChangeText={v => field('age', v)} keyboardType="number-pad" unit="anni" />
-
-        <TouchableOpacity style={styles.calcBtn} onPress={applyTDEEBulk}>
-          <Text style={styles.calcBtnText}>Ricalcola TDEE + macro bulk</Text>
-          <Text style={styles.calcBtnSub}>TDEE stimato: {calcTDEE()} kcal → target: {calcTDEE() + 300} kcal</Text>
-        </TouchableOpacity>
-      </Section>
-
-      <Section title="TARGET MACRO GIORNALIERI">
-        <Row label="Calorie" value={form.target_calories} onChangeText={v => field('target_calories', v)} keyboardType="number-pad" unit="kcal" />
-        <Row label="Proteine" value={form.target_protein} onChangeText={v => field('target_protein', v)} keyboardType="number-pad" unit="g" />
-        <Row label="Carboidrati" value={form.target_carbs} onChangeText={v => field('target_carbs', v)} keyboardType="number-pad" unit="g" />
-        <Row label="Grassi" value={form.target_fats} onChangeText={v => field('target_fats', v)} keyboardType="number-pad" unit="g" />
       </Section>
 
       <Section title="NOTIFICHE">
@@ -236,24 +192,7 @@ export default function SettingsScreen() {
                 maxLength={2}
               />
             </View>
-            <Text style={styles.notifLabel}>Reminder nutrizione (sera)</Text>
-            <View style={styles.timeRow}>
-              <TextInput
-                style={styles.timeInput}
-                value={form.notification_evening_hour}
-                onChangeText={v => field('notification_evening_hour', v)}
-                keyboardType="number-pad"
-                maxLength={2}
-              />
-              <Text style={styles.timeSep}>:</Text>
-              <TextInput
-                style={styles.timeInput}
-                value={form.notification_evening_minute}
-                onChangeText={v => field('notification_evening_minute', v)}
-                keyboardType="number-pad"
-                maxLength={2}
-              />
-            </View>
+            <Text style={styles.notifLabel}>Promemoria acqua durante la giornata sempre attivi.</Text>
           </>
         )}
       </Section>

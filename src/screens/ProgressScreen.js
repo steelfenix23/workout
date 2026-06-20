@@ -5,12 +5,12 @@ import {
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
 import {
-  getSessionHistory, getNutritionHistory, getWeightHistory,
+  getSessionHistory, getWeightHistory,
   addWeightLog, todayStr,
 } from '../database/db';
 import { COLORS } from '../theme';
 
-const TABS = ['Allenamenti', 'Nutrizione', 'Peso'];
+const TABS = ['Allenamenti', 'Peso'];
 
 function BarChart({ data, valueKey, labelKey, color, maxOverride }) {
   if (!data.length) return <Text style={styles.emptyText}>Nessun dato disponibile</Text>;
@@ -64,7 +64,6 @@ export default function ProgressScreen() {
   const db = useSQLiteContext();
   const [activeTab, setActiveTab] = useState(0);
   const [sessions, setSessions] = useState([]);
-  const [nutrition, setNutrition] = useState([]);
   const [weights, setWeights] = useState([]);
   const [newWeight, setNewWeight] = useState('');
 
@@ -75,13 +74,11 @@ export default function ProgressScreen() {
   );
 
   async function loadData() {
-    const [sess, nutr, w] = await Promise.all([
+    const [sess, w] = await Promise.all([
       getSessionHistory(db, 30),
-      getNutritionHistory(db, 14),
       getWeightHistory(db, 30),
     ]);
     setSessions(sess);
-    setNutrition(nutr);
     setWeights(w);
   }
 
@@ -170,25 +167,6 @@ export default function ProgressScreen() {
       )}
 
       {activeTab === 1 && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>CALORIE GIORNALIERE (ultimi 14 gg)</Text>
-          <BarChart
-            data={nutrition}
-            valueKey="total_calories"
-            labelKey="date"
-            color={COLORS.accent}
-          />
-          <Text style={[styles.cardTitle, { marginTop: 20 }]}>PROTEINE (g)</Text>
-          <BarChart
-            data={nutrition}
-            valueKey="total_protein"
-            labelKey="date"
-            color={COLORS.protein}
-          />
-        </View>
-      )}
-
-      {activeTab === 2 && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>PESO CORPOREO</Text>
           <WeightChart data={weights} />
