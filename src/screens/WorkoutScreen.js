@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Alert, Modal, KeyboardAvoidingView, Platform, ActivityIndicator,
+  StyleSheet, Alert, Modal, KeyboardAvoidingView, Platform, ActivityIndicator, Linking,
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
@@ -210,6 +210,69 @@ function ExerciseCardReadOnly({ exercise, sets }) {
   );
 }
 
+function parseArr(s) {
+  if (Array.isArray(s)) return s;
+  try { return JSON.parse(s) || []; } catch { return []; }
+}
+
+function InstructionsView({ exercise }) {
+  const steps = parseArr(exercise.steps);
+  const mistakes = parseArr(exercise.mistakes);
+
+  return (
+    <ScrollView style={styles.detailScroll} nestedScrollEnabled>
+      {exercise.primary_muscles ? (
+        <>
+          <Text style={styles.detailSectionTitle}>MUSCOLI</Text>
+          <Text style={styles.detailMuscle}>
+            <Text style={styles.detailMusclePrimary}>{exercise.primary_muscles}</Text>
+            {exercise.secondary_muscles && exercise.secondary_muscles !== '—'
+              ? `  ·  ${exercise.secondary_muscles}` : ''}
+          </Text>
+        </>
+      ) : null}
+
+      {steps.length > 0 && (
+        <>
+          <Text style={styles.detailSectionTitle}>ESECUZIONE</Text>
+          {steps.map((s, i) => (
+            <View key={i} style={styles.stepRow}>
+              <Text style={styles.stepNum}>{i + 1}</Text>
+              <Text style={styles.stepText}>{s}</Text>
+            </View>
+          ))}
+        </>
+      )}
+
+      {mistakes.length > 0 && (
+        <>
+          <Text style={styles.detailSectionTitle}>ERRORI COMUNI</Text>
+          {mistakes.map((m, i) => (
+            <Text key={i} style={styles.mistakeText}>✕  {m}</Text>
+          ))}
+        </>
+      )}
+
+      {exercise.tempo ? (
+        <>
+          <Text style={styles.detailSectionTitle}>TEMPO & RESPIRO</Text>
+          <Text style={styles.detailBody}>{exercise.tempo}</Text>
+        </>
+      ) : null}
+
+      {steps.length === 0 && exercise.instructions ? (
+        <Text style={styles.modalInstructions}>{exercise.instructions}</Text>
+      ) : null}
+
+      {exercise.video_url ? (
+        <TouchableOpacity style={styles.videoBtn} onPress={() => Linking.openURL(exercise.video_url)}>
+          <Text style={styles.videoBtnText}>▶  Guarda video dimostrativo</Text>
+        </TouchableOpacity>
+      ) : null}
+    </ScrollView>
+  );
+}
+
 function ExerciseDetailModal({ exercise, onClose }) {
   const db = useSQLiteContext();
   const [tab, setTab] = useState('instructions');
@@ -253,7 +316,7 @@ function ExerciseDetailModal({ exercise, onClose }) {
           </View>
 
           {tab === 'instructions' ? (
-            <Text style={styles.modalInstructions}>{exercise.instructions}</Text>
+            <InstructionsView exercise={exercise} />
           ) : historyLoading ? (
             <View style={styles.historyCenter}>
               <ActivityIndicator color={COLORS.accent} />
@@ -917,6 +980,28 @@ const styles = StyleSheet.create({
   detailTabText: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
   detailTabTextActive: { color: '#fff' },
   modalInstructions: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 22, marginBottom: 20 },
+
+  detailScroll: { maxHeight: 360, marginBottom: 8 },
+  detailSectionTitle: {
+    fontSize: 11, fontWeight: '700', color: COLORS.textSecondary,
+    letterSpacing: 1.1, marginTop: 14, marginBottom: 6,
+  },
+  detailMuscle: { fontSize: 14, color: COLORS.textSecondary },
+  detailMusclePrimary: { color: COLORS.accent, fontWeight: '700' },
+  detailBody: { fontSize: 14, color: COLORS.text, lineHeight: 20 },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
+  stepNum: {
+    fontSize: 12, fontWeight: '700', color: '#fff',
+    backgroundColor: COLORS.accent, width: 20, height: 20, borderRadius: 10,
+    textAlign: 'center', lineHeight: 20, marginRight: 10, overflow: 'hidden',
+  },
+  stepText: { flex: 1, fontSize: 14, color: COLORS.text, lineHeight: 20 },
+  mistakeText: { fontSize: 14, color: COLORS.text, lineHeight: 20, marginBottom: 5 },
+  videoBtn: {
+    marginTop: 18, backgroundColor: COLORS.border, borderRadius: 10,
+    paddingVertical: 12, alignItems: 'center',
+  },
+  videoBtnText: { color: COLORS.accent, fontWeight: '700', fontSize: 15 },
   modalClose: { backgroundColor: COLORS.accent, borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 8 },
   modalCloseText: { color: '#fff', fontWeight: '700' },
   historyCenter: { alignItems: 'center', paddingVertical: 24 },

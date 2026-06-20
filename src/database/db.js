@@ -173,6 +173,22 @@ export async function initDatabase(db) {
     await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seed_version', '6')");
   }
 
+  if (currentVersion < 7) {
+    // Schede esercizio dettagliate: muscoli, step, errori, tempo, video.
+    const cols = await db.getAllAsync('PRAGMA table_info(exercises)');
+    const adds = [
+      ['primary_muscles', 'TEXT'], ['secondary_muscles', 'TEXT'],
+      ['steps', 'TEXT'], ['mistakes', 'TEXT'], ['tempo', 'TEXT'], ['video_url', 'TEXT'],
+    ];
+    for (const [name, type] of adds) {
+      if (!cols.find(c => c.name === name)) {
+        await db.execAsync(`ALTER TABLE exercises ADD COLUMN ${name} ${type}`);
+      }
+    }
+    await seedExerciseDetails(db);
+    await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seed_version', '7')");
+  }
+
   const profileExists = await db.getFirstAsync('SELECT id FROM profile WHERE id = 1');
   if (!profileExists) {
     await db.runAsync(
@@ -579,7 +595,8 @@ export async function resetDayOverride(db, date) {
 
 export async function getExercisesForTrainingDay(db, trainingDayId) {
   return db.getAllAsync(
-    `SELECT tde.*, e.name, e.muscle_group, e.equipment, e.instructions
+    `SELECT tde.*, e.name, e.muscle_group, e.equipment, e.instructions,
+            e.primary_muscles, e.secondary_muscles, e.steps, e.mistakes, e.tempo, e.video_url
      FROM training_day_exercises tde
      JOIN exercises e ON e.id = tde.exercise_id
      WHERE tde.training_day_id = ?
@@ -803,6 +820,135 @@ export async function getExerciseMaxWeightExcluding(db, exerciseId, sessionId) {
 
 export async function getWeightHistory(db, limit = 30) {
   return db.getAllAsync('SELECT * FROM weight_log ORDER BY date DESC LIMIT ?', [limit]);
+}
+
+// ─── Dettagli esercizi ───────────────────────────────────────────────────────
+
+async function seedExerciseDetails(db) {
+  const yt = q => 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
+  // [name, primari, secondari, [step...], [errori...], tempo, query video]
+  const details = [
+    ['Panca Piana con Manubri', 'Pettorali', 'Tricipiti, deltoide anteriore',
+      ['Sdraiati con un manubrio per mano all\'altezza del petto, gomiti a circa 45° rispetto al busto.',
+       'Spingi i manubri verso l\'alto fino a quasi distendere le braccia, avvicinandoli leggermente in cima.',
+       'Scendi controllato in 2-3 secondi sentendo lo stretch sul petto.',
+       'Tieni le scapole addotte e i piedi ben piantati a terra.'],
+      ['Gomiti spalancati a 90° (stress sulle spalle).', 'Rimbalzare i manubri in basso senza controllo.', 'Inarcare troppo la schiena.'],
+      '2s discesa · 1s spinta · inspira scendendo, espira spingendo', 'panca piana manubri esecuzione corretta'],
+    ['Panca Inclinata 30° - Spinte', 'Parte alta dei pettorali', 'Deltoide anteriore, tricipiti',
+      ['Imposta l\'inclinazione a circa 30°.',
+       'Parti con i manubri all\'altezza delle spalle, gomiti sotto i polsi.',
+       'Spingi verso l\'alto e leggermente verso l\'interno.',
+       'Scendi lento controllando lo stretch.'],
+      ['Inclinazione troppo alta (>45°) sposta il lavoro sulle spalle.', 'Aprire troppo i gomiti.'],
+      '2s discesa · 1s spinta', 'spinte manubri panca inclinata 30 gradi'],
+    ['Panca Inclinata 30° - Croci', 'Parte alta dei pettorali', 'Deltoide anteriore',
+      ['Inclinazione ~30°, manubri sopra il petto con braccia quasi tese e gomiti morbidi.',
+       'Apri le braccia ad arco ampio mantenendo i gomiti leggermente piegati e fissi.',
+       'Scendi fino a sentire lo stretch, senza superare la linea delle spalle.',
+       'Richiudi seguendo lo stesso arco, contraendo il petto.'],
+      ['Trasformarlo in una spinta piegando i gomiti.', 'Scendere troppo e stressare la spalla.', 'Usare un carico eccessivo.'],
+      'Movimento lento e controllato, carico leggero', 'croci manubri panca inclinata tecnica'],
+    ['Dips alle Parallele', 'Tricipiti, parte bassa dei pettorali', 'Deltoide anteriore',
+      ['Sali sulle parallele con braccia tese, busto leggermente inclinato in avanti.',
+       'Scendi piegando i gomiti finché le spalle vanno sotto il livello dei gomiti.',
+       'Spingi verso l\'alto fino a quasi distendere le braccia.',
+       'Per enfasi sui tricipiti tieni il busto più verticale e i gomiti vicini.'],
+      ['Scendere troppo poco (mezza ripetizione).', 'Gomiti che si aprono troppo.', 'Spalle in su: tienile basse, lontane dalle orecchie.'],
+      '2s discesa · 1s spinta', 'dips parallele esecuzione corretta'],
+    ['Trazioni alla Sbarra', 'Gran dorsale', 'Bicipiti, romboidi, trapezio',
+      ['Impugna la sbarra poco più larga delle spalle, palmi in avanti.',
+       'Parti da braccia distese e attiva le scapole tirandole verso il basso.',
+       'Tira il petto verso la sbarra portando il mento sopra di essa.',
+       'Scendi controllato in 2-3 secondi fino a distendere le braccia.'],
+      ['Usare slancio o kipping.', 'Non completare la distensione in basso.', 'Tirare solo con le braccia senza il dorso.'],
+      'Tirata esplosiva · 2-3s di discesa', 'trazioni sbarra presa prona tecnica'],
+    ['Rematore con Manubri', 'Dorsali (parte medio-alta)', 'Bicipiti, deltoide posteriore, trapezio',
+      ['Busto inclinato ~45°, schiena neutra, ginocchia morbide.',
+       'Braccia tese verso il basso con i manubri.',
+       'Tira i manubri verso i fianchi stringendo le scapole.',
+       'Abbassa controllato senza ruotare il busto.'],
+      ['Schiena curva.', 'Usare lo slancio del busto.', 'Tirare verso le spalle invece che ai fianchi.'],
+      '1s tirata · 2s discesa', 'rematore manubri due braccia tecnica'],
+    ['Curl Classico con Manubri', 'Bicipiti', 'Avambracci',
+      ['In piedi, gomiti fissi ai fianchi.',
+       'Solleva i manubri ruotando il polso (supinazione).',
+       'Contrai in cima senza spostare i gomiti.',
+       'Scendi lento fino a distendere le braccia.'],
+      ['Usare lo slancio del busto.', 'Spostare i gomiti in avanti.', 'Non distendere del tutto in basso.'],
+      '1s salita · 2s discesa', 'curl bicipiti manubri tecnica corretta'],
+    ['Curl a Martello', 'Bicipiti, brachiale', 'Brachioradiale (avambraccio)',
+      ['Presa neutra: pollice verso l\'alto per tutto il movimento.',
+       'Solleva senza ruotare il polso.',
+       'Contrai in cima.',
+       'Scendi controllato.'],
+      ['Oscillare il busto.', 'Gomiti che si spostano in avanti.'],
+      '1s salita · 2s discesa', 'hammer curl manubri tecnica'],
+    ['Shoulder Press con Manubri', 'Deltoidi (anteriore e laterale)', 'Tricipiti, trapezio',
+      ['Manubri all\'altezza delle orecchie, gomiti a circa 90°.',
+       'Spingi verso l\'alto fino a quasi far toccare i manubri.',
+       'Non bloccare di scatto i gomiti.',
+       'Scendi controllato fino alle orecchie.'],
+      ['Inarcare la schiena spingendo (attiva il core).', 'Scendere troppo poco.', 'Allargare troppo i gomiti.'],
+      '1s salita · 2s discesa', 'shoulder press manubri esecuzione'],
+    ['Alzate Laterali', 'Deltoide laterale', 'Trapezio',
+      ['In piedi, manubri ai fianchi, gomiti leggermente piegati.',
+       'Alza le braccia di lato fino all\'altezza delle spalle.',
+       'Guida il movimento con i gomiti, mignolo leggermente più alto.',
+       'Scendi lento resistendo alla gravità.'],
+      ['Usare slancio e troppo peso.', 'Salire sopra le spalle reclutando il trapezio.', 'Movimento troppo veloce.'],
+      '1s salita · 2-3s discesa · carico leggero', 'alzate laterali manubri tecnica'],
+    ['Alzate Frontali', 'Deltoide anteriore', 'Parte alta dei pettorali',
+      ['Manubri davanti alle cosce.',
+       'Alza le braccia davanti a te fino all\'altezza delle spalle.',
+       'Non superare la linea delle spalle.',
+       'Scendi controllato.'],
+      ['Slancio del busto.', 'Salire troppo in alto.', 'Carico eccessivo.'],
+      '1s salita · 2s discesa', 'alzate frontali manubri tecnica'],
+    ['Crunch', 'Retto addominale', 'Obliqui',
+      ['Sdraiato, ginocchia piegate, piedi a terra.',
+       'Mani dietro la testa senza tirare il collo.',
+       'Solleva spalle e parte alta della schiena contraendo l\'addome.',
+       'Tieni 1s in cima e scendi lento.'],
+      ['Tirare il collo con le mani.', 'Fare un sit-up completo.', 'Andare troppo veloce.'],
+      '1s salita · 2s discesa · contrazione in cima', 'crunch addominali esecuzione corretta'],
+    ['Plank', 'Core (trasverso e retto addominale)', 'Spalle, glutei',
+      ['Appoggio su avambracci e punte dei piedi.',
+       'Corpo in linea retta dalla testa ai talloni.',
+       'Contrai addome e glutei, sguardo a terra.',
+       'Respira normalmente mantenendo la posizione.'],
+      ['Far cedere i fianchi verso il basso.', 'Alzare troppo il bacino.', 'Trattenere il respiro.'],
+      'Tenuta isometrica per il tempo indicato', 'plank esecuzione corretta'],
+    ['Goblet Squat', 'Quadricipiti, glutei', 'Adduttori, core',
+      ['Tieni un manubrio verticale al petto, come un calice.',
+       'Piedi a larghezza spalle, punte leggermente in fuori.',
+       'Scendi spingendo i fianchi indietro e in basso, busto eretto.',
+       'Almeno fino a cosce parallele, poi risali spingendo con i talloni.'],
+      ['Ginocchia che cedono verso l\'interno.', 'Talloni che si staccano da terra.', 'Busto troppo in avanti.'],
+      '2s discesa · 1s risalita', 'goblet squat manubrio tecnica'],
+    ['Affondi con Manubri', 'Quadricipiti, glutei', 'Femorali, core',
+      ['Manubri ai fianchi, in piedi.',
+       'Fai un passo lungo in avanti.',
+       'Abbassa il ginocchio posteriore quasi a terra, busto eretto.',
+       'Spingi con il tallone anteriore per tornare in piedi, poi alterna.'],
+      ['Ginocchio anteriore che supera di molto la punta del piede.', 'Busto troppo in avanti.', 'Passo troppo corto.'],
+      'Controllato, 1-2s per fase', 'affondi manubri tecnica corretta'],
+    ['Calf Raise', 'Polpacci (gastrocnemio e soleo)', '—',
+      ['In piedi sul bordo di un gradino, talloni nel vuoto.',
+       'Sollevati sulle punte il più in alto possibile.',
+       'Contrai 1s in cima.',
+       'Scendi lento sentendo lo stretch sotto il livello del gradino.'],
+      ['Mezzo range di movimento.', 'Rimbalzare velocemente.', 'Non fermarsi in cima.'],
+      '1s salita · pausa · 2s discesa', 'calf raise polpacci esecuzione'],
+  ];
+
+  for (const [name, prim, sec, steps, mistakes, tempo, query] of details) {
+    await db.runAsync(
+      `UPDATE exercises SET primary_muscles = ?, secondary_muscles = ?, steps = ?, mistakes = ?, tempo = ?, video_url = ?
+       WHERE name = ?`,
+      [prim, sec, JSON.stringify(steps), JSON.stringify(mistakes), tempo, yt(query), name]
+    );
+  }
 }
 
 // ─── Export ──────────────────────────────────────────────────────────────────
