@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Alert, Modal, KeyboardAvoidingView, Platform, ActivityIndicator, Linking,
+  StyleSheet, Alert, Modal, KeyboardAvoidingView, Platform, ActivityIndicator, Linking, Pressable,
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
@@ -310,8 +310,9 @@ function ExerciseDetailModal({ exercise, onClose }) {
 
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={styles.modalBox}>
+      <View style={styles.modalOverlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.modalBox}>
           <Text style={styles.modalTitle}>{exercise.name}</Text>
           <Text style={styles.modalEquipment}>{exercise.equipment}</Text>
 
@@ -355,8 +356,8 @@ function ExerciseDetailModal({ exercise, onClose }) {
           <TouchableOpacity style={styles.modalClose} onPress={onClose}>
             <Text style={styles.modalCloseText}>Chiudi</Text>
           </TouchableOpacity>
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </View>
+      </View>
     </Modal>
   );
 }
