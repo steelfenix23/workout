@@ -779,6 +779,53 @@ export async function getWeightHistory(db, limit = 30) {
   return db.getAllAsync('SELECT * FROM weight_log ORDER BY date DESC LIMIT ?', [limit]);
 }
 
+// ─── Export ──────────────────────────────────────────────────────────────────
+
+export async function exportAllData(db) {
+  const [
+    profile, trainingDays, exercises, trainingDayExercises, weeklySchedule,
+    sessions, sets, weightLog, nutritionDaily, water,
+  ] = await Promise.all([
+    db.getFirstAsync('SELECT * FROM profile WHERE id = 1'),
+    db.getAllAsync('SELECT id, day_of_week, name, is_rest_day FROM training_days ORDER BY id'),
+    db.getAllAsync('SELECT id, name, muscle_group, equipment FROM exercises ORDER BY id'),
+    db.getAllAsync(
+      `SELECT training_day_id, exercise_id, order_index, target_sets,
+              target_reps_min, target_reps_max, suggested_weight
+       FROM training_day_exercises ORDER BY training_day_id, order_index`
+    ),
+    db.getAllAsync('SELECT day_of_week, training_day_id FROM weekly_schedule ORDER BY day_of_week'),
+    db.getAllAsync(
+      'SELECT id, training_day_id, date, completed FROM workout_sessions ORDER BY date'
+    ),
+    db.getAllAsync(
+      'SELECT session_id, exercise_id, set_number, weight_kg, reps, rpe FROM workout_sets ORDER BY session_id, exercise_id, set_number'
+    ),
+    db.getAllAsync('SELECT date, weight_kg FROM weight_log ORDER BY date'),
+    db.getAllAsync(
+      `SELECT date, SUM(calories) as kcal, SUM(protein_g) as p, SUM(carbs_g) as c, SUM(fats_g) as f
+       FROM nutrition_log GROUP BY date ORDER BY date`
+    ),
+    db.getAllAsync('SELECT date, glasses FROM water_log ORDER BY date'),
+  ]);
+
+  return {
+    app: 'workout',
+    schema: 5,
+    exportedAt: new Date().toISOString(),
+    profile,
+    trainingDays,
+    exercises,
+    plan: trainingDayExercises,
+    weeklySchedule,
+    sessions,
+    sets,
+    weightLog,
+    nutritionDaily,
+    water,
+  };
+}
+
 // ─── Utils ───────────────────────────────────────────────────────────────────
 
 export function todayStr() {

@@ -5,9 +5,11 @@ import {
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
+import * as Clipboard from 'expo-clipboard';
 import {
   getProfile, updateProfile, todayStr,
   getWeeklySchedule, getTrainingDayOptions, setWeeklyScheduleDay,
+  exportAllData,
 } from '../database/db';
 import {
   requestPermissions, scheduleWorkoutNotifications,
@@ -52,6 +54,7 @@ export default function SettingsScreen() {
   const [weeklySchedule, setWeeklySchedule] = useState([]);
   const [tdOptions, setTdOptions] = useState([]);
   const [pickerDow, setPickerDow] = useState(null);
+  const [exportText, setExportText] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -164,6 +167,20 @@ export default function SettingsScreen() {
     }
   }
 
+  async function handleExport() {
+    try {
+      const data = await exportAllData(db);
+      setExportText(JSON.stringify(data));
+    } catch (e) {
+      Alert.alert('Errore export', String(e?.message ?? e));
+    }
+  }
+
+  async function copyExport() {
+    await Clipboard.setStringAsync(exportText);
+    Alert.alert('Copiato', 'Dati copiati negli appunti. Incollali nella chat con Claude.');
+  }
+
   if (!form.weight_kg) return null;
 
   return (
@@ -268,8 +285,43 @@ export default function SettingsScreen() {
         <Text style={styles.saveBtnText}>{saving ? 'Salvataggio...' : 'Salva impostazioni'}</Text>
       </TouchableOpacity>
 
+      <Section title="DATI">
+        <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+          <Text style={styles.exportBtnText}>Esporta dati (per analisi)</Text>
+          <Text style={styles.exportBtnSub}>Genera un testo con allenamenti, peso e nutrizione da incollare nella chat</Text>
+        </TouchableOpacity>
+      </Section>
+
       <Text style={styles.version}>Workout App v1.0 — uso personale</Text>
     </ScrollView>
+
+    {exportText !== null && (
+      <Modal transparent animationType="fade" onRequestClose={() => setExportText(null)}>
+        <View style={styles.exportOverlay}>
+          <View style={styles.exportBox}>
+            <Text style={styles.exportTitle}>ESPORTA DATI</Text>
+            <Text style={styles.exportHint}>
+              Premi "Copia", poi incolla nella chat con Claude. In alternativa tieni premuto sul riquadro e seleziona tutto.
+            </Text>
+            <TextInput
+              style={styles.exportField}
+              value={exportText}
+              multiline
+              editable={false}
+              selectTextOnFocus
+            />
+            <View style={styles.exportActions}>
+              <TouchableOpacity style={styles.exportClose} onPress={() => setExportText(null)}>
+                <Text style={styles.exportCloseText}>Chiudi</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.exportCopy} onPress={copyExport}>
+                <Text style={styles.exportCopyText}>Copia</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    )}
 
     {pickerDow !== null && (
       <Modal transparent animationType="fade" onRequestClose={() => setPickerDow(null)}>
@@ -384,4 +436,37 @@ const styles = StyleSheet.create({
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 17 },
   version: { textAlign: 'center', color: COLORS.textSecondary, fontSize: 12 },
+
+  exportBtn: { padding: 16 },
+  exportBtnText: { color: COLORS.accent, fontWeight: '700', fontSize: 15 },
+  exportBtnSub: { color: COLORS.textSecondary, fontSize: 12, marginTop: 3 },
+
+  exportOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center', alignItems: 'center', padding: 20,
+  },
+  exportBox: {
+    backgroundColor: COLORS.card, borderRadius: 16, width: '100%', padding: 18,
+  },
+  exportTitle: {
+    fontSize: 14, fontWeight: '700', color: COLORS.textSecondary,
+    letterSpacing: 1.1, marginBottom: 8,
+  },
+  exportHint: { fontSize: 13, color: COLORS.textSecondary, marginBottom: 12, lineHeight: 18 },
+  exportField: {
+    backgroundColor: COLORS.bg, borderRadius: 10, padding: 12,
+    color: COLORS.text, fontSize: 11, height: 200,
+    textAlignVertical: 'top', fontFamily: 'Courier',
+  },
+  exportActions: { flexDirection: 'row', marginTop: 14, gap: 12 },
+  exportClose: {
+    flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center',
+    borderWidth: 1, borderColor: COLORS.border,
+  },
+  exportCloseText: { color: COLORS.text, fontWeight: '600', fontSize: 15 },
+  exportCopy: {
+    flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center',
+    backgroundColor: COLORS.accent,
+  },
+  exportCopyText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
