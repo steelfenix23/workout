@@ -1,12 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Alert,
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
   getProfile, getTrainingDayForDate, getNutritionForDate,
   getWeeklySessions, getWaterForDate, setWaterGlasses, todayStr, dateStr,
+  addWeightLog, getWeightHistory,
 } from '../database/db';
 import { COLORS } from '../theme';
 
@@ -60,6 +61,8 @@ export default function HomeScreen() {
   const [nutrition, setNutrition] = useState({ calories: 0, protein: 0, carbs: 0, fats: 0 });
   const [weekSessions, setWeekSessions] = useState([]);
   const [water, setWater] = useState(0);
+  const [lastWeight, setLastWeight] = useState(null);
+  const [weightInput, setWeightInput] = useState('');
 
   const today = new Date();
   const todayIso = todayStr();
@@ -97,6 +100,20 @@ export default function HomeScreen() {
     sunday.setDate(monday.getDate() + 6);
     const sessions = await getWeeklySessions(db, dateStr(monday), dateStr(sunday));
     setWeekSessions(sessions);
+
+    const weights = await getWeightHistory(db, 1);
+    setLastWeight(weights[0] ?? null);
+  }
+
+  async function handleSaveWeight() {
+    const w = parseFloat(weightInput.replace(',', '.'));
+    if (!w || w < 30 || w > 250) {
+      Alert.alert('Peso non valido', 'Inserisci un valore tra 30 e 250 kg.');
+      return;
+    }
+    await addWeightLog(db, todayIso, w);
+    setWeightInput('');
+    loadData();
   }
 
   async function handleWaterChange(delta) {
@@ -194,6 +211,41 @@ export default function HomeScreen() {
         )}
       </View>
 
+      {/* Peso corporeo */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>PESO CORPOREO</Text>
+        {lastWeight ? (
+          <Text style={styles.weightLast}>
+            Ultimo: <Text style={styles.weightLastValue}>{lastWeight.weight_kg} kg</Text>
+            {(() => {
+              const days = Math.round((Date.now() - new Date(lastWeight.date).getTime()) / 86400000);
+              if (days <= 0) return ' · oggi';
+              return ` · ${days} ${days === 1 ? 'giorno' : 'giorni'} fa`;
+            })()}
+          </Text>
+        ) : (
+          <Text style={styles.weightLast}>Nessun peso registrato — pesati per seguire il bulk.</Text>
+        )}
+        {lastWeight && Math.round((Date.now() - new Date(lastWeight.date).getTime()) / 86400000) >= 7 && (
+          <Text style={styles.weightStale}>⚠︎ Non ti pesi da una settimana</Text>
+        )}
+        <View style={styles.weightRow}>
+          <TextInput
+            style={styles.weightInput}
+            value={weightInput}
+            onChangeText={setWeightInput}
+            keyboardType="decimal-pad"
+            placeholder={lastWeight ? lastWeight.weight_kg.toString() : '74.0'}
+            placeholderTextColor={COLORS.textSecondary}
+            selectTextOnFocus
+          />
+          <Text style={styles.weightUnit}>kg</Text>
+          <TouchableOpacity style={styles.weightSaveBtn} onPress={handleSaveWeight}>
+            <Text style={styles.weightSaveText}>Registra</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* Nutrizione oggi */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>NUTRIZIONE OGGI</Text>
@@ -277,6 +329,24 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   ctaText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
+  // Weight widget
+  weightLast: { color: COLORS.textSecondary, fontSize: 14, marginBottom: 4 },
+  weightLastValue: { color: COLORS.text, fontWeight: '700' },
+  weightStale: { color: COLORS.warning, fontSize: 13, marginBottom: 4 },
+  weightRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  weightInput: {
+    backgroundColor: COLORS.border, borderRadius: 10,
+    paddingVertical: 10, paddingHorizontal: 14,
+    color: COLORS.text, fontSize: 16, fontWeight: '700',
+    width: 100, textAlign: 'center',
+  },
+  weightUnit: { color: COLORS.textSecondary, fontSize: 14, marginLeft: 8 },
+  weightSaveBtn: {
+    marginLeft: 'auto', backgroundColor: COLORS.accent,
+    borderRadius: 10, paddingVertical: 10, paddingHorizontal: 18,
+  },
+  weightSaveText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   // Water widget
   waterBarTrack: { height: 6, backgroundColor: COLORS.border, borderRadius: 3, marginBottom: 16 },

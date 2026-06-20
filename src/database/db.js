@@ -162,6 +162,17 @@ export async function initDatabase(db) {
     await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seed_version', '5')");
   }
 
+  if (currentVersion < 6) {
+    // Ripulisce i duplicati storici di water_log (una riga per data, tiene l'ultima)
+    // e impedisce che ricapiti con un indice univoco sulla data.
+    await db.execAsync(`
+      DELETE FROM water_log
+      WHERE id NOT IN (SELECT MAX(id) FROM water_log GROUP BY date);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_water_date ON water_log(date);
+    `);
+    await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seed_version', '6')");
+  }
+
   const profileExists = await db.getFirstAsync('SELECT id FROM profile WHERE id = 1');
   if (!profileExists) {
     await db.runAsync(
@@ -663,6 +674,21 @@ export async function deleteSet(db, sessionId, exerciseId, setNumber) {
 
 export async function completeSession(db, sessionId) {
   await db.runAsync('UPDATE workout_sessions SET completed = 1 WHERE id = ?', [sessionId]);
+  // Aggiorna i target peso della scheda con il carico più alto fatto in questa sessione,
+  // così la prossima volta l'app mostra obiettivi reali invece di quelli vecchi del seed.
+  const session = await db.getFirstAsync('SELECT training_day_id FROM workout_sessions WHERE id = ?', [sessionId]);
+  if (!session?.training_day_id) return;
+  const tops = await db.getAllAsync(
+    `SELECT exercise_id, MAX(weight_kg) as top FROM workout_sets
+     WHERE session_id = ? AND weight_kg > 0 GROUP BY exercise_id`,
+    [sessionId]
+  );
+  for (const t of tops) {
+    await db.runAsync(
+      'UPDATE training_day_exercises SET suggested_weight = ? WHERE training_day_id = ? AND exercise_id = ?',
+      [t.top, session.training_day_id, t.exercise_id]
+    );
+  }
 }
 
 // ─── Nutrition ────────────────────────────────────────────────────────────────
