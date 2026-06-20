@@ -93,6 +93,30 @@ export async function scheduleWaterReminders() {
   }
 }
 
+// Promemoria peso: ogni mattina presto, da fare appena svegli a stomaco vuoto.
+// Il peso va letto come media settimanale, non giorno per giorno.
+export async function scheduleWeightReminder(hour = 7, minute = 30) {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  for (const n of scheduled) {
+    if (n.content.data?.type === 'weight') {
+      await Notifications.cancelScheduledNotificationAsync(n.identifier);
+    }
+  }
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Pesati ⚖️',
+      body: 'Appena sveglio, dopo il bagno e prima di mangiare o bere. Guarda la media settimanale, non il singolo giorno.',
+      data: { type: 'weight' },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour,
+      minute,
+    },
+  });
+}
+
 export async function cancelAllNotifications() {
   await Notifications.cancelAllScheduledNotificationsAsync();
 }

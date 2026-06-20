@@ -6,7 +6,7 @@ import { SQLiteProvider } from 'expo-sqlite';
 import { Text } from 'react-native';
 
 import { initDatabase } from './src/database/db';
-import { requestPermissions, scheduleWorkoutNotifications, scheduleWaterReminders, cancelEveningReminders } from './src/notifications/scheduler';
+import { requestPermissions, scheduleWorkoutNotifications, scheduleWaterReminders, scheduleWeightReminder, cancelEveningReminders } from './src/notifications/scheduler';
 import HomeScreen from './src/screens/HomeScreen';
 import WorkoutScreen from './src/screens/WorkoutScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
@@ -37,6 +37,7 @@ function AppNavigator() {
       if (granted) {
         await scheduleWorkoutNotifications(8, 0);
         await scheduleWaterReminders();
+        await scheduleWeightReminder();
         await cancelEveningReminders();
       }
     }

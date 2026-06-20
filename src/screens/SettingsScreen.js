@@ -13,7 +13,7 @@ import {
 } from '../database/db';
 import {
   requestPermissions, scheduleWorkoutNotifications,
-  scheduleWaterReminders, cancelAllNotifications,
+  scheduleWaterReminders, scheduleWeightReminder, cancelAllNotifications,
 } from '../notifications/scheduler';
 import { COLORS } from '../theme';
 
@@ -121,6 +121,7 @@ export default function SettingsScreen() {
           const sched = await getWeeklySchedule(db);
           await scheduleWorkoutNotifications(updates.notification_morning_hour, updates.notification_morning_minute, sched);
           await scheduleWaterReminders();
+          await scheduleWeightReminder();
           Alert.alert('Salvato', 'Profilo e notifiche aggiornati.');
         } else {
           Alert.alert('Permessi notifiche', 'Non hai concesso i permessi per le notifiche. Abilitali nelle impostazioni del telefono.');

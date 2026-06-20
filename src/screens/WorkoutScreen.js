@@ -24,26 +24,40 @@ function repsLabel(min, max, isBodyweight) {
   return min === max ? `${min}${unit}` : `${min}–${max}${unit}`;
 }
 
+const fmtKg = n => (Math.round(n * 10) / 10).toString();
+
+// Doppia progressione: satura il range di reps al peso di lavoro, poi sali di uno scatto (1.5kg).
 function suggestProgression(lastSets, targetMin, targetMax) {
   if (!lastSets.length) return null;
-  const hasWeight = lastSets.some(s => s.weight_kg > 0);
-  const avgWeight = hasWeight
-    ? lastSets.reduce((s, x) => s + x.weight_kg, 0) / lastSets.length
-    : 0;
-  const allHitMax = lastSets.every(s => s.reps >= targetMax);
-  const anyBelowMin = lastSets.some(s => s.reps < targetMin);
+  const weighted = lastSets.filter(s => s.weight_kg > 0);
 
-  if (allHitMax) {
-    if (!hasWeight) return { text: '↑ Aggiungi carico (zavorra)', color: COLORS.success };
-    return { text: `↑ Aumenta: ${(avgWeight + WEIGHT_STEP).toFixed(1)}kg`, color: COLORS.success };
+  // Esercizi a corpo libero / a tempo (Plank, Trazioni, Dips, Crunch).
+  if (!weighted.length) {
+    const minReps = Math.min(...lastSets.map(s => s.reps || 0));
+    if (minReps >= targetMax) {
+      return { text: '↑ Aggiungi carico (zavorra) o punta a più ripetizioni', color: COLORS.success };
+    }
+    return { text: `→ Punta a ${targetMax} su tutte le serie`, color: COLORS.warning };
   }
-  if (!anyBelowMin) {
-    return { text: `→ Completa il range prima di aumentare`, color: COLORS.warning };
+
+  // Peso di lavoro = il carico usato nel maggior numero di serie (a parità, il più leggero),
+  // così una singola serie pesante + back-off non sballa il calcolo.
+  const counts = {};
+  weighted.forEach(s => { counts[s.weight_kg] = (counts[s.weight_kg] || 0) + 1; });
+  let W = weighted[0].weight_kg;
+  for (const w of Object.keys(counts).map(Number)) {
+    if (counts[w] > counts[W] || (counts[w] === counts[W] && w < W)) W = w;
   }
-  return {
-    text: hasWeight ? `↓ Riduci a ${Math.max(0, avgWeight - WEIGHT_STEP).toFixed(1)}kg` : '↓ Riduci il tempo',
-    color: COLORS.danger,
-  };
+  const minRepsAtW = Math.min(...weighted.filter(s => s.weight_kg === W).map(s => s.reps || 0));
+
+  if (minRepsAtW >= targetMax) {
+    return { text: `↑ Sali a ${fmtKg(W + WEIGHT_STEP)}kg`, color: COLORS.success };
+  }
+  // Tolleranza di 2 reps sotto il minimo: una rep persa non fa calare il peso.
+  if (minRepsAtW >= targetMin - 2) {
+    return { text: `→ Resta a ${fmtKg(W)}kg, punta a ${targetMax} reps`, color: COLORS.warning };
+  }
+  return { text: `↓ Scendi a ${fmtKg(Math.max(MIN_WEIGHT, W - WEIGHT_STEP))}kg`, color: COLORS.danger };
 }
 
 function SetRow({ set, onChange, onDelete, isBodyweight }) {

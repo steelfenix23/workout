@@ -130,8 +130,8 @@ export default function HomeScreen() {
         ) : (
           <Text style={styles.weightLast}>Nessun peso registrato — pesati per seguire il bulk.</Text>
         )}
-        {lastWeight && Math.round((Date.now() - new Date(lastWeight.date).getTime()) / 86400000) >= 7 && (
-          <Text style={styles.weightStale}>⚠︎ Non ti pesi da una settimana</Text>
+        {lastWeight && Math.round((Date.now() - new Date(lastWeight.date).getTime()) / 86400000) >= 3 && (
+          <Text style={styles.weightStale}>⚠︎ Pesati al mattino: l'ideale è ogni giorno (conta la media settimanale)</Text>
         )}
         <View style={styles.weightRow}>
           <TextInput
