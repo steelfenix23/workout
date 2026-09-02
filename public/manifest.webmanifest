@@ -1,0 +1,14 @@
+{
+  "name": "Workout",
+  "short_name": "Workout",
+  "start_url": "/workout/",
+  "scope": "/workout/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#11161A",
+  "theme_color": "#11161A",
+  "icons": [
+    { "src": "/workout/icon.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" },
+    { "src": "/workout/icon.png", "sizes": "1024x1024", "type": "image/png", "purpose": "maskable" }
+  ]
+}
