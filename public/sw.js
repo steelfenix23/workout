@@ -7,7 +7,7 @@
 //  - asset con hash nel nome (js/css/png): cache-first → istantanei e immutabili.
 //  - tutto il resto (es. chiamate a Supabase): non passa dalla cache.
 
-const CACHE = 'workout-v1';
+const CACHE = 'workout-v2';
 const SCOPE = new URL(self.registration.scope).pathname;
 
 self.addEventListener('install', (e) => {
@@ -30,8 +30,12 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== self.location.origin) return; // Supabase & co. passano diretti
 
   if (request.mode === 'navigate') {
+    // cache: 'no-cache' obbliga a rivalidare con il server invece di fidarsi
+    // della cache HTTP. GitHub Pages serve l'HTML con max-age=600, quindi senza
+    // questo un aggiornamento appena pubblicato può non comparire per 10 minuti.
+    // Costa poco: se non è cambiato nulla il server risponde 304.
     e.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'no-cache' })
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(SCOPE, copy));
