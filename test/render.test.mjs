@@ -20,7 +20,10 @@ before(async () => {
     external: ["react", "react-dom", "react-dom/server"],
     logLevel: "silent",
   });
-  ({ render } = await import(outfile));
+  const mod = await import(outfile);
+  // React SSR separa i pezzi interpolati con commenti <!-- -->: li tolgo,
+  // altrimenti "Oggi: 2 serie" non combacia mai con l'HTML prodotto.
+  render = (...args) => mod.render(...args).replaceAll("<!-- -->", "");
 });
 
 const state = (over = {}) => ({
@@ -117,4 +120,20 @@ test("Una seduta in corso mostra la colonna Prec. con i dati dell'ultima volta",
 test("Una seduta inesistente non fa esplodere la schermata", () => {
   const html = render("Session", state(), { sessionId: "boh" });
   assert.match(html, /non esiste più/);
+});
+
+test("la seduta mostra le serie di OGGI, non quelle nominali della scheda", () => {
+  const s = state();               // settimana 1 = riadattamento, serie limitate a 2
+  s.sessions.push({
+    id: "live", dayId: "upper_a", date: "2026-09-02", startedAt: "x", endedAt: null, note: "",
+    sets: [
+      { exId: "panca_piana", setNumber: 1, weight: 13, reps: 6, done: false },
+      { exId: "panca_piana", setNumber: 2, weight: 13, reps: 6, done: false },
+    ],
+  });
+  const html = render("Session", s, { sessionId: "live" });
+  assert.match(html, /Oggi: 2 serie/, "deve dire 2 serie, non le 4 a regime");
+  assert.match(html, /ridotte da 4 per la fase in corso/, "e deve spiegare perché");
+  assert.match(html, /1ª volta/, "la colonna Prec. deve dire che non c'è storico");
+  assert.doesNotMatch(html, /Oggi: 4 serie/);
 });

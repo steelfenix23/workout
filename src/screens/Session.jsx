@@ -134,10 +134,16 @@ export default function Session({ sessionId, onClose, onExercise }) {
           <button className="grow" style={{ textAlign: "left" }} onClick={() => onExercise(item.exId)}>
             <h2>{ex.name}</h2>
             <p className="sub">
-              {item.sets}×{item.repsMin === item.repsMax ? item.repsMin : `${item.repsMin}-${item.repsMax}`}
+              {/* Le serie mostrate sono quelle di OGGI, non quelle nominali della scheda:
+                  in riadattamento e in scarico sono ridotte, e vedere "4" con due righe
+                  sotto è solo confusione. */}
+              Oggi: {suggestion.sets} serie ×{" "}
+              {item.repsMin === item.repsMax ? item.repsMin : `${item.repsMin}-${item.repsMax}`}
+              {ex.timed ? " secondi" : " ripetizioni"}
               {ex.unilateral && " per gamba"}
-              {ex.timed && " secondi"} · tocca per la scheda
+              {suggestion.sets < item.sets && ` · ridotte da ${item.sets} per la fase in corso`}
             </p>
+            <p className="tiny">Tocca il nome per vedere come si esegue</p>
           </button>
         </div>
 
@@ -156,7 +162,7 @@ export default function Session({ sessionId, onClose, onExercise }) {
               <div key={s.setNumber} className={"setrow" + (s.done ? " done" : "")}>
                 <span className="n">{s.setNumber}</span>
                 <span className="prev">
-                  {prev ? `${fmt(prev.weight)}×${prev.reps}` : "—"}
+                  {prev ? `${fmt(prev.weight)}×${prev.reps}` : (last ? "—" : "1ª volta")}
                 </span>
                 <input
                   className="fld" type="number" inputMode="decimal" step="0.5"
@@ -189,6 +195,12 @@ export default function Session({ sessionId, onClose, onExercise }) {
             <button onClick={() => bumpWeight(1)} aria-label="Più">+</button>
           </div>
         )}
+
+        <p className="tiny">
+          I valori sono già quelli da fare. Se la serie è andata così, tocca <b>✓</b>.
+          Altrimenti correggi prima il numero. <b>Prec.</b> è quello che avevi fatto
+          l'ultima volta.
+        </p>
 
         <button className="btn ghost small" onClick={addSet}>+ Aggiungi serie</button>
 
