@@ -17,12 +17,12 @@ const TABS = [
 export default function App() {
   const [tab, setTab] = useState("today");
   const [sessionId, setSessionId] = useState(null); // seduta in corso, a schermo pieno
-  const [runOpen, setRunOpen] = useState(false);
+  const [runPreset, setRunPreset] = useState(null); // null = chiusa
   const [exId, setExId] = useState(null);           // scheda esercizio, sopra a tutto
 
   const open = (o) => {
     if (o.kind === "session") setSessionId(o.sessionId);
-    else if (o.kind === "run") setRunOpen(true);
+    else if (o.kind === "run") setRunPreset(o.preset ?? {});
     else if (o.kind === "exercise") setExId(o.exId);
   };
 
@@ -60,7 +60,7 @@ export default function App() {
         ))}
       </nav>
 
-      {runOpen && <RunLog onClose={() => setRunOpen(false)} />}
+      {runPreset && <RunLog preset={runPreset} onClose={() => setRunPreset(null)} />}
       {sheet}
     </div>
   );

@@ -1,7 +1,7 @@
 // Rotazione, regole del calcetto, doppia progressione, fasi.
 // Qui c'è tutto il "cervello" della scheda: le schermate si limitano a mostrarlo.
 
-import { DAY, EX, phaseForWeek, runTargetForWeek } from "./program.js";
+import { DAY, EX, phaseForWeek, runTargetForWeek, runPlanForWeek } from "./program.js";
 import { todayISO } from "./dates.js";
 
 const DAY_MS = 86400000;
@@ -256,4 +256,53 @@ export function personalRecords(state, limit = 6) {
     }
   }
   return [...best.values()].sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit);
+}
+
+// ─── La corsa ────────────────────────────────────────────────────────────────
+
+/**
+ * Quale seduta di corsa tocca adesso. Confronta il piano della settimana con
+ * quello che è già stato registrato, per tipo: se hai già fatto la camminata in
+ * salita, la prossima è la corsa facile.
+ */
+export function nextRun(state, iso = todayISO()) {
+  const week = programWeek(state, iso);
+  const plan = runPlanForWeek(week);
+  const { start, end } = weekBounds(iso);
+
+  const fatte = new Map();
+  for (const r of state.runs) {
+    if (r.date >= start && r.date <= end) fatte.set(r.type, (fatte.get(r.type) || 0) + 1);
+  }
+
+  const rimaste = [];
+  for (const p of plan) {
+    const n = fatte.get(p.type) || 0;
+    if (n > 0) { fatte.set(p.type, n - 1); continue; }
+    rimaste.push(p);
+  }
+
+  return {
+    week, plan, total: plan.length,
+    done: plan.length - rimaste.length,
+    next: rimaste[0] ?? null,
+  };
+}
+
+/**
+ * Regola 4: gli intervalli non stanno mai a meno di 24 ore dalle gambe pesanti.
+ * Restituisce l'avviso, oppure null se si può fare.
+ */
+export function checkRunRules(state, type, iso = todayISO()) {
+  if (type !== "intervalli") return null;
+  const ieri = addDays(iso, -1);
+  const gambe = state.sessions.some(
+    (s) => s.endedAt && (s.date === iso || s.date === ieri) && DAY[s.dayId]?.legs
+  );
+  if (!gambe) return null;
+  return {
+    title: "Gambe pesanti troppo vicine",
+    body: "Hai allenato le gambe da meno di 24 ore. Gli intervalli su gambe stanche non allenano il fiato, aumentano solo il rischio. Fai oggi la camminata in salita e sposta gli intervalli.",
+    suggest: "salita",
+  };
 }

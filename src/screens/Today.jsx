@@ -1,7 +1,8 @@
 import { useStore, todayISO, newId } from "../data/store.jsx";
-import { DAY, EX } from "../data/program.js";
+import { DAY, EX, RUN_TYPE } from "../data/program.js";
 import {
   nextDayId, checkRules, currentPhase, weekStats, dow, addDays, suggestFor,
+  nextRun, checkRunRules,
 } from "../data/logic.js";
 
 const DOW = ["L", "M", "M", "G", "V", "S", "D"];
@@ -11,6 +12,9 @@ export default function Today({ open }) {
   const iso = todayISO();
   const phase = currentPhase(state);
   const week = weekStats(state, iso);
+
+  const run = nextRun(state, iso);
+  const runRule = run.next ? checkRunRules(state, run.next.type, iso) : null;
 
   const openSession = state.sessions.find((s) => !s.endedAt);
   const dayId = openSession ? openSession.dayId : nextDayId(state);
@@ -89,6 +93,39 @@ export default function Today({ open }) {
         </button>
         <button className="btn ghost" onClick={() => open({ kind: "run" })}>Registra corsa</button>
       </div>
+
+      {run.next ? (
+        <div className="card aer">
+          <p className="eyebrow">Prossima corsa · {run.done + 1} di {run.total} questa settimana</p>
+          <h2>{RUN_TYPE[run.next.type].label}</h2>
+          <p className="sub">
+            {run.next.minutes} minuti · {RUN_TYPE[run.next.type].speed} · pendenza{" "}
+            {RUN_TYPE[run.next.type].incline}
+          </p>
+          <p className="tiny">{RUN_TYPE[run.next.type].hint}</p>
+          {runRule ? (
+            <>
+              <p className="tiny" style={{ color: "var(--forza)" }}><b>{runRule.title}.</b> {runRule.body}</p>
+              <button className="btn aer wide" onClick={() => open({ kind: "run", preset: { ...run.next, type: runRule.suggest } })}>
+                Fai la camminata in salita
+              </button>
+            </>
+          ) : (
+            <button className="btn aer wide" onClick={() => open({ kind: "run", preset: run.next })}>
+              Registra questa corsa
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="card aer">
+          <p className="eyebrow">Corsa</p>
+          <h2>Settimana completata</h2>
+          <p className="sub">
+            Hai chiuso tutte e {run.total} le sedute aerobiche previste. Se hai voglia di
+            muoverti ancora, una camminata in salita non toglie recupero a niente.
+          </p>
+        </div>
+      )}
 
       <div className="card">
         <p className="eyebrow">Questa settimana</p>

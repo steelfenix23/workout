@@ -3,8 +3,9 @@ import test from "node:test";
 import {
   suggestFor, checkRules, nextDayId, advanceRotation, currentPhase,
   estimated1RM, lastSetsFor, weekStats, personalRecords, nextMatchIn,
+  nextRun, checkRunRules,
 } from "../src/data/logic.js";
-import { DAY, ROTATION, phaseForWeek, runTargetForWeek, EXERCISES } from "../src/data/program.js";
+import { DAY, ROTATION, phaseForWeek, runTargetForWeek, runPlanForWeek, EXERCISES } from "../src/data/program.js";
 
 const base = (over = {}) => ({
   profile: { startedAt: "2026-09-07", heightCm: 185, matchDay: null, weightStep: 1.5 },
@@ -150,4 +151,54 @@ test("i record personali prendono la prestazione migliore per esercizio", () => 
   const prs = personalRecords(s);
   assert.equal(prs.length, 1);
   assert.equal(prs[0].weight, 22);
+});
+
+test("il piano di corsa copre 12 settimane e i totali coincidono col programma", () => {
+  const attesi = [45, 50, 60, 65, 75, 80, 90, 95, 50, 100, 110, 115];
+  for (let w = 1; w <= 12; w++) {
+    const plan = runPlanForWeek(w);
+    assert.ok(plan.length >= 2, `settimana ${w}: troppe poche sedute`);
+    assert.equal(runTargetForWeek(w), attesi[w - 1], `settimana ${w}`);
+    assert.equal(plan.reduce((t, r) => t + r.minutes, 0), attesi[w - 1],
+      `settimana ${w}: la somma del piano deve essere l'obiettivo`);
+  }
+});
+
+test("la corsa lunga non cresce mai piu' del 12% a settimana", () => {
+  let prev = 0;
+  for (let w = 3; w <= 12; w++) {
+    if (w === 9) continue;                       // scarico: solo camminate
+    const lunga = runPlanForWeek(w).find((r) => r.type === "lunga");
+    if (!lunga) continue;
+    if (prev) assert.ok(lunga.minutes <= prev * 1.12,
+      `settimana ${w}: da ${prev} a ${lunga.minutes} minuti è un salto troppo grosso`);
+    prev = lunga.minutes;
+  }
+});
+
+test("nextRun propone le sedute in ordine e si accorge di quelle fatte", () => {
+  const s = base();
+  const oggi = "2026-09-07";
+  s.profile.startedAt = oggi;                    // settimana 1: salita + facile
+  let r = nextRun(s, oggi);
+  assert.equal(r.total, 2);
+  assert.equal(r.next.type, "salita");
+  s.runs.push({ id: "a", date: oggi, type: "salita", minutes: 25 });
+  r = nextRun(s, oggi);
+  assert.equal(r.done, 1);
+  assert.equal(r.next.type, "facile");
+  s.runs.push({ id: "b", date: oggi, type: "facile", minutes: 20 });
+  assert.equal(nextRun(s, oggi).next, null, "settimana completata");
+});
+
+test("regola 4: niente intervalli entro 24 ore dalle gambe pesanti", () => {
+  const s = base();
+  assert.equal(checkRunRules(s, "intervalli", "2026-09-10"), null);
+  s.sessions.push(session("lower_a", "2026-09-09", [
+    { exId: "front_squat", setNumber: 1, weight: 14, reps: 8, done: true },
+  ]));
+  const r = checkRunRules(s, "intervalli", "2026-09-10");
+  assert.ok(r, "il giorno dopo le gambe deve avvisare");
+  assert.equal(r.suggest, "salita");
+  assert.equal(checkRunRules(s, "lunga", "2026-09-10"), null, "vale solo per gli intervalli");
 });

@@ -350,18 +350,17 @@ export const RUN_TYPE = Object.fromEntries(RUN_TYPES.map((r) => [r.id, r]));
 // ─── Le 12 settimane ─────────────────────────────────────────────────────────
 // setsCap:    tetto alle serie per esercizio
 // loadFactor: moltiplicatore sui carichi d'ingresso
-// runTarget:  minuti di lavoro aerobico nella settimana
 
 export const PHASES = [
-  { from: 1,  to: 2,  name: "Riadattamento",  setsCap: 2, loadFactor: 0.7,  sessions: 3, runTarget: [45, 50],
+  { from: 1,  to: 2,  name: "Riadattamento",  setsCap: 2, loadFactor: 0.7,  sessions: 3,
     rule: "Zero cedimento, zero eroismi. Devi finire ogni seduta pensando \"potevo fare di più\"." },
-  { from: 3,  to: 4,  name: "Costruzione",    setsCap: 3, loadFactor: 0.85, sessions: 4, runTarget: [60, 65],
+  { from: 3,  to: 4,  name: "Costruzione",    setsCap: 3, loadFactor: 0.85, sessions: 4,
     rule: "Struttura piena. La tecnica prima del carico." },
-  { from: 5,  to: 8,  name: "Progressione",   setsCap: 9, loadFactor: 1,    sessions: 4, runTarget: [75, 80, 90, 95],
+  { from: 5,  to: 8,  name: "Progressione",   setsCap: 9, loadFactor: 1,    sessions: 4,
     rule: "Doppia progressione attiva su tutto. È qui che si mette massa." },
-  { from: 9,  to: 9,  name: "Scarico",        setsCap: 2, loadFactor: 1,    sessions: 3, runTarget: [50],
+  { from: 9,  to: 9,  name: "Scarico",        setsCap: 2, loadFactor: 1,    sessions: 3,
     rule: "Settimana leggera programmata, presa prima che la chieda il corpo." },
-  { from: 10, to: 12, name: "Consolidamento", setsCap: 9, loadFactor: 1,    sessions: 4, runTarget: [100, 110, 115],
+  { from: 10, to: 12, name: "Consolidamento", setsCap: 9, loadFactor: 1,    sessions: 4,
     rule: "Si chiude puntando ai 5 km continui e ai record sui fondamentali." },
 ];
 
@@ -370,8 +369,31 @@ export function phaseForWeek(week) {
   return PHASES.find((p) => w >= p.from && w <= p.to) || PHASES[PHASES.length - 1];
 }
 
+// ─── Il piano di corsa, settimana per settimana ──────────────────────────────
+// La corsa lunga cresce di circa il 10% a settimana: è il limite oltre il quale
+// ci si infortuna. La settimana 9 è di scarico: solo camminate.
+
+export const RUN_PLAN = {
+  1:  [{ type: "salita", minutes: 25 }, { type: "facile", minutes: 20 }],
+  2:  [{ type: "salita", minutes: 25 }, { type: "facile", minutes: 25 }],
+  3:  [{ type: "salita", minutes: 25 }, { type: "facile", minutes: 15 }, { type: "lunga", minutes: 20 }],
+  4:  [{ type: "salita", minutes: 25 }, { type: "facile", minutes: 18 }, { type: "lunga", minutes: 22 }],
+  5:  [{ type: "salita", minutes: 26 }, { type: "intervalli", minutes: 25 }, { type: "lunga", minutes: 24 }],
+  6:  [{ type: "salita", minutes: 29 }, { type: "intervalli", minutes: 25 }, { type: "lunga", minutes: 26 }],
+  7:  [{ type: "salita", minutes: 36 }, { type: "intervalli", minutes: 25 }, { type: "lunga", minutes: 29 }],
+  8:  [{ type: "salita", minutes: 38 }, { type: "intervalli", minutes: 25 }, { type: "lunga", minutes: 32 }],
+  9:  [{ type: "salita", minutes: 25 }, { type: "salita", minutes: 25 }],
+  10: [{ type: "salita", minutes: 40 }, { type: "intervalli", minutes: 25 }, { type: "lunga", minutes: 35 }],
+  11: [{ type: "salita", minutes: 47 }, { type: "intervalli", minutes: 25 }, { type: "lunga", minutes: 38 }],
+  12: [{ type: "salita", minutes: 48 }, { type: "intervalli", minutes: 25 }, { type: "lunga", minutes: 42 }],
+};
+
+export function runPlanForWeek(week) {
+  const w = Math.min(12, Math.max(1, week));
+  return RUN_PLAN[w] || RUN_PLAN[12];
+}
+
+/** L'obiettivo settimanale è la somma del piano: i due numeri non possono divergere. */
 export function runTargetForWeek(week) {
-  const p = phaseForWeek(week);
-  const idx = Math.min(Math.max(0, week - p.from), p.runTarget.length - 1);
-  return p.runTarget[idx];
+  return runPlanForWeek(week).reduce((t, r) => t + r.minutes, 0);
 }

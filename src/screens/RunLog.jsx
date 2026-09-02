@@ -9,10 +9,10 @@ const EFFORT = [
   { id: "dura", label: "Dura" },
 ];
 
-export default function RunLog({ onClose }) {
+export default function RunLog({ onClose, preset = {} }) {
   const { state, update } = useStore();
-  const [type, setType] = useState("salita");
-  const [minutes, setMinutes] = useState("");
+  const [type, setType] = useState(preset.type ?? "salita");
+  const [minutes, setMinutes] = useState(preset.minutes ? String(preset.minutes) : "");
   const [km, setKm] = useState("");
   const [incline, setIncline] = useState("");
   const [effort, setEffort] = useState("giusta");
@@ -60,6 +60,9 @@ export default function RunLog({ onClose }) {
         <div className="card flat">
           <p className="eyebrow">{t.label} · {t.speed} · pendenza {t.incline}</p>
           <p style={{ fontSize: 13.5 }}>{t.hint}</p>
+          {preset.type === type && preset.minutes && (
+            <p className="tiny"><b>Prevista oggi:</b> {preset.minutes} minuti.</p>
+          )}
         </div>
 
         <div className="grid2">
