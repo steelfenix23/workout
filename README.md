@@ -64,6 +64,16 @@ src/screens/            Oggi, Sessione, Corsa, Progressi, Scheda, Altro
 Nessuna dipendenza a runtime oltre a React: niente librerie di stato, di routing,
 di grafici o di database.
 
+### L'icona
+
+È generata, non disegnata a mano: `python3 scripts/make-icon.py` (serve Pillow) riscrive
+`public/icon.png`, `apple-touch-icon.png` e `favicon.png`. Per cambiarla si toccano i colori
+o la geometria in cima allo script invece di aprire un editor grafico.
+
+Un manubrio inclinato: dischi arancioni per la forza, barra verde-azzurra per il fiato —
+gli stessi due colori con cui l'app distingue ovunque i due binari del programma. La forma
+sta dentro l'80% centrale, così non viene tagliata dalle maschere circolari.
+
 ## Backup su Supabase (facoltativo)
 
 L'app funziona completamente offline e senza account. Supabase serve solo ad avere un
