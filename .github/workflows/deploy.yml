@@ -34,7 +34,12 @@ jobs:
       - name: Build
         run: npm run build
 
+      # enablement: se Pages non è ancora attivo lo attiva da solo, invece di
+      # fallire. Senza, il primo deploy fallisce sempre finché non si va a mano
+      # nelle impostazioni del repository.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
