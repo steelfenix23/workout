@@ -327,23 +327,62 @@ export const ROTATION = ["upper_a", "lower_a", "upper_b", "lower_b"];
 // ─── Tipi di corsa ───────────────────────────────────────────────────────────
 
 export const RUN_TYPES = [
-  {
-    id: "salita", label: "Camminata in salita", short: "Salita", speed: "6 km/h", incline: "8-12%",
-    hint: "Costruisce il motore senza affaticare le gambe. Puoi metterla ovunque, anche il giorno dopo lo squat.",
-  },
-  {
-    id: "facile", label: "Corsa facile", short: "Facile", speed: "7-7,5 km/h", incline: "1%",
-    hint: "Devi riuscire a dire una frase intera senza spezzare il fiato. Se non ci riesci, stai andando troppo forte.",
-  },
-  {
-    id: "lunga", label: "Corsa lunga lenta", short: "Lunga", speed: "7-8 km/h", incline: "1%",
-    hint: "La seduta che sposta davvero l'ago. Cresce al massimo del 10% a settimana.",
-  },
-  {
-    id: "intervalli", label: "Intervalli", short: "Intervalli", speed: "11-12 km/h", incline: "1%",
-    hint: "6-8 × 400 m con 90 secondi di camminata fra una e l'altra. È il pezzo che si trasferisce al calcetto.",
-  },
+  { id: "salita", label: "Camminata in salita", short: "Salita",
+    hint: "Costruisce il motore senza affaticare le gambe. Puoi metterla ovunque, anche il giorno dopo lo squat." },
+  { id: "facile", label: "Corsa facile", short: "Facile",
+    hint: "Devi riuscire a dire una frase intera senza spezzare il fiato. Se non ci riesci, stai andando troppo forte." },
+  { id: "lunga", label: "Corsa lunga lenta", short: "Lunga",
+    hint: "La seduta che sposta davvero l'ago. Cresce al massimo del 10% a settimana." },
+  { id: "intervalli", label: "Intervalli", short: "Intervalli",
+    hint: "Recupero camminando 90 secondi fra una ripetuta e l'altra. È il pezzo che si trasferisce al calcetto." },
 ];
+
+/**
+ * Velocità e pendenza da usare QUESTA settimana.
+ *
+ * I valori d'ingresso della prima stesura erano troppo alti: 6 km/h all'8% di
+ * pendenza sono un lavoro vigoroso, non la fascia aerobica di chi riparte da
+ * fermo. Adesso si parte basso e si sale — la pendenza di un punto ogni due
+ * settimane, la corsa continua solo dopo un mese di alternato.
+ */
+export function runGuidance(type, week) {
+  const w = Math.min(12, Math.max(1, week));
+
+  if (type === "salita") {
+    const incline = Math.min(10, 4 + Math.floor((w - 1) / 2));
+    return {
+      speed: "5-5,5 km/h", incline: `${incline}%`,
+      note: `Pendenza ${incline}% questa settimana, poi sale di un punto ogni due settimane. Se a metà seduta non riesci più a parlare, scendi di due punti: deve essere sostenibile a lungo, non dura.`,
+    };
+  }
+
+  if (type === "facile") {
+    if (w <= 4) return {
+      speed: "2' a 7 km/h + 2' a 5 km/h", incline: "1%",
+      note: "Alterna due minuti di corsa e due di camminata fino a completare i minuti previsti. Correre di fila viene dopo: adesso il motore si costruisce così.",
+    };
+    return {
+      speed: "7-7,5 km/h", incline: "1%",
+      note: "Ora continua. Il test è sempre lo stesso: devi riuscire a dire una frase intera senza spezzare il fiato.",
+    };
+  }
+
+  if (type === "lunga") {
+    if (w <= 6) return {
+      speed: "3' a 7 km/h + 2' a 5 km/h", incline: "1%",
+      note: "Alterna tre minuti di corsa e due di camminata. Qui conta la durata totale, non correre senza fermarsi.",
+    };
+    return {
+      speed: "7-8 km/h", incline: "1%",
+      note: "Continua e lenta. È la seduta che sposta davvero l'ago.",
+    };
+  }
+
+  return {
+    speed: "10-11 km/h", incline: "1%",
+    note: "6-8 volte 400 metri, camminando 90 secondi fra una e l'altra. Se l'ultima ripetuta è molto più lenta della prima, hai iniziato troppo forte.",
+  };
+}
 
 export const RUN_TYPE = Object.fromEntries(RUN_TYPES.map((r) => [r.id, r]));
 

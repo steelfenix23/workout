@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useStore, todayISO, newId } from "../data/store.jsx";
-import { RUN_TYPES, RUN_TYPE } from "../data/program.js";
+import { RUN_TYPES, RUN_TYPE, runGuidance } from "../data/program.js";
 import { currentPhase, weekStats, fmt } from "../data/logic.js";
 
 const EFFORT = [
@@ -21,6 +21,7 @@ export default function RunLog({ onClose, preset = {} }) {
   const phase = currentPhase(state);
   const week = weekStats(state, iso);
   const t = RUN_TYPE[type];
+  const g = runGuidance(type, phase.week);
 
   const min = Number(minutes) || 0;
   const dist = Number(km) || 0;
@@ -58,8 +59,9 @@ export default function RunLog({ onClose, preset = {} }) {
         </div>
 
         <div className="card flat">
-          <p className="eyebrow">{t.label} · {t.speed} · pendenza {t.incline}</p>
-          <p style={{ fontSize: 13.5 }}>{t.hint}</p>
+          <p className="eyebrow">{t.label} · {g.speed} · pendenza {g.incline}</p>
+          <p style={{ fontSize: 13.5 }}>{g.note}</p>
+          <p className="tiny">{t.hint}</p>
           {preset.type === type && preset.minutes && (
             <p className="tiny"><b>Prevista oggi:</b> {preset.minutes} minuti.</p>
           )}

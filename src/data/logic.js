@@ -175,9 +175,9 @@ export function suggestFor(state, dayId, item, sessionId = null) {
     const weight = ex.bodyweight ? 0 : roundToStep(base * phase.loadFactor, step, ex);
     return {
       sets, weight, reps: item.repsMin,
-      reason: ex.bodyweight
-        ? "Prima volta: parti col corpo libero e resta lontano dal cedimento."
-        : `Prima volta: carico d'ingresso della fase "${phase.name}".`,
+      reason: phase.loadFactor < 1
+        ? `Fase "${phase.name}": carico ridotto e ${item.repsMin} ripetizioni bastano. Se le senti facili resta comunque lontano dal cedimento — è il punto della fase.`
+        : `Prima volta su questo esercizio. Punta al massimo del range (${item.repsMax}) restando 2-3 ripetizioni dal cedimento, poi correggi il numero.`,
       progressed: false,
     };
   }

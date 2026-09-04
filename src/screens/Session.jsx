@@ -152,7 +152,10 @@ export default function Session({ sessionId, onClose, onExercise }) {
             <span />
             <span>Prec.</span>
             <span>{ex.bodyweight ? "zavorra" : "kg"}</span>
-            <span>{ex.timed ? "sec" : "reps"}</span>
+            <span>
+              {ex.timed ? "sec" : "reps"}{" "}
+              {item.repsMin === item.repsMax ? item.repsMin : `${item.repsMin}-${item.repsMax}`}
+            </span>
             <span />
           </div>
 

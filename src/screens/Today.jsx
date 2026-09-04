@@ -1,5 +1,5 @@
 import { useStore, todayISO, newId } from "../data/store.jsx";
-import { DAY, EX, RUN_TYPE } from "../data/program.js";
+import { DAY, EX, RUN_TYPE, runGuidance } from "../data/program.js";
 import {
   nextDayId, checkRules, currentPhase, weekStats, dow, addDays, suggestFor,
   nextRun, checkRunRules,
@@ -99,10 +99,10 @@ export default function Today({ open }) {
           <p className="eyebrow">Prossima corsa · {run.done + 1} di {run.total} questa settimana</p>
           <h2>{RUN_TYPE[run.next.type].label}</h2>
           <p className="sub">
-            {run.next.minutes} minuti · {RUN_TYPE[run.next.type].speed} · pendenza{" "}
-            {RUN_TYPE[run.next.type].incline}
+            {run.next.minutes} minuti · {runGuidance(run.next.type, phase.week).speed} · pendenza{" "}
+            {runGuidance(run.next.type, phase.week).incline}
           </p>
-          <p className="tiny">{RUN_TYPE[run.next.type].hint}</p>
+          <p className="tiny">{runGuidance(run.next.type, phase.week).note}</p>
           {runRule ? (
             <>
               <p className="tiny" style={{ color: "var(--forza)" }}><b>{runRule.title}.</b> {runRule.body}</p>
