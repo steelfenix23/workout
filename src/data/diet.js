@@ -15,7 +15,7 @@ export const COLAZIONE = {
   note: "Avena e latte in un barattolo in frigo la sera prima. La mattina aggiungi mandorle e miele.",
   alts: [
     { name: "Piadina con fior di latte e pomodoro", kcal: 690, prot: 27,
-      what: "1 piadina (100 g) · 100 g fior di latte · pomodoro a fette con 1 cucchiaio d'olio · un caffè se vuoi, senza latte. Martedì e venerdì hanno già mozzarella più tardi: quei giorni meglio l'avena" },
+      what: "1 piadina (100 g) · 100 g fior di latte · pomodoro a fette con 1 cucchiaio d'olio · un caffè se vuoi, senza latte. Martedì, mercoledì e venerdì hanno già mozzarella più tardi: quei giorni meglio l'avena" },
   ],
 };
 
@@ -95,15 +95,16 @@ const C = {
 
 // ─── La settimana: indice 0 = lunedì, come dow() in logic.js ────────────────
 // La merenda di ogni giorno usa l'avanzo della cena del giorno PRIMA. Dove la
-// sera prima non c'è carne (bufala, pesce, pizza) la merenda cambia fonte.
+// sera prima non c'è carne (bufala, pesce, pizza) la merenda cambia fonte. Il
+// mercoledì usa il fior di latte e non le uova: a pranzo ce ne sono già tre.
 
 export const WEEK = [
   { day: "Lunedì",    pranzo: P.ragu,       alt: P.carbonara,  merenda: M.carne("carne avanzata da domenica"), cena: CARNE("Pollo", true) },
   { day: "Martedì",   pranzo: P.pomodoro,   alt: P.zucchine,   merenda: M.carne("pollo avanzato da ieri"),     cena: C.bufala },
-  { day: "Mercoledì", pranzo: P.insalata,   alt: P.ragu,       merenda: M.uova,                                 cena: CARNE("Tacchino", true) },
+  { day: "Mercoledì", pranzo: P.pesto,      alt: P.ragu,       merenda: M.mozzarella,                           cena: CARNE("Tacchino", true) },
   { day: "Giovedì",   pranzo: P.fagioli,    alt: P.lenticchie, merenda: M.carne("tacchino avanzato da ieri"),  cena: C.pesce },
   { day: "Venerdì",   pranzo: P.lenticchie, alt: P.zucca,      merenda: M.mozzarella,                           cena: CARNE("Manzo", true) },
-  { day: "Sabato",    pranzo: P.pesto,      alt: P.aglio,      merenda: M.carne("manzo avanzato da ieri"),     cena: C.pizza },
+  { day: "Sabato",    pranzo: P.insalata,   alt: P.aglio,      merenda: M.carne("manzo avanzato da ieri"),     cena: C.pizza },
   { day: "Domenica",  pranzo: P.forno,      alt: P.carbonara,  merenda: M.salume,                               cena: CARNE("Maiale o carne a scelta", true) },
 ];
 

@@ -207,7 +207,7 @@ test("la dieta nell'app coincide col documento stampabile", async () => {
   const { WEEK, dayTotals } = await import("../src/data/diet.js");
   // Totali pubblicati in "Le Calorie Mancanti": se si cambia un pasto nell'app
   // senza aggiornare il documento (o viceversa), questo test lo segnala.
-  const documento = [[3270, 185], [3340, 154], [3275, 173], [3190, 169], [3257, 161], [3500, 168], [3315, 184]];
+  const documento = [[3270, 185], [3340, 154], [3292, 168], [3190, 169], [3257, 161], [3485, 173], [3315, 184]];
   assert.equal(WEEK.length, 7);
   WEEK.forEach((d, i) => {
     const t = dayTotals(d);
@@ -240,4 +240,13 @@ test("ogni merenda con carne avanzata ha una cena con carne la sera prima", asyn
     assert.ok(ieri.cena.note && /merenda di domani/.test(ieri.cena.note),
       `${d.day}: la merenda usa un avanzo ma la cena di ${ieri.day} non dice di cucinarne di più`);
   });
+});
+
+test("nessun giorno supera le 4 uova fra pancake, pranzo e merenda", async () => {
+  const { WEEK } = await import("../src/data/diet.js");
+  const uova = (t) => { const m = t.match(/(\d+) uova/); return m ? Number(m[1]) : 0; };
+  for (const d of WEEK) {
+    const n = 1 + uova(d.pranzo.what) + uova(d.merenda.what);   // 1 = l'uovo del pancake
+    assert.ok(n <= 4, `${d.day}: ${n} uova`);
+  }
 });
