@@ -202,3 +202,25 @@ test("regola 4: niente intervalli entro 24 ore dalle gambe pesanti", () => {
   assert.equal(r.suggest, "salita");
   assert.equal(checkRunRules(s, "lunga", "2026-09-10"), null, "vale solo per gli intervalli");
 });
+
+test("la dieta nell'app coincide col documento stampabile", async () => {
+  const { WEEK, dayTotals } = await import("../src/data/diet.js");
+  // Totali pubblicati in "Le Calorie Mancanti": se si cambia un pasto nell'app
+  // senza aggiornare il documento (o viceversa), questo test lo segnala.
+  const documento = [[3260, 185], [3330, 154], [3240, 183], [3180, 169], [3220, 171], [3490, 168], [3315, 184]];
+  assert.equal(WEEK.length, 7);
+  WEEK.forEach((d, i) => {
+    const t = dayTotals(d);
+    assert.equal(t.kcal, documento[i][0], `${d.day}: kcal`);
+    assert.equal(Math.round(t.prot), documento[i][1], `${d.day}: proteine`);
+  });
+});
+
+test("la dieta non contiene gli alimenti esclusi", async () => {
+  const diet = await import("../src/data/diet.js");
+  const testo = JSON.stringify(diet).toLowerCase();
+  // Vincoli dichiarati: niente banana, niente burro d'arachidi, niente ceci, niente grana.
+  for (const vietato of ["banana", "burro d'arachidi", "ceci", "grana", "parmigiano"]) {
+    assert.ok(!testo.includes(vietato), `compare "${vietato}"`);
+  }
+});

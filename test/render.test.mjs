@@ -141,3 +141,16 @@ test("la seduta mostra le serie di OGGI, non quelle nominali della scheda", () =
   assert.match(html, /1ª volta/, "la colonna Prec. deve dire che non c'è storico");
   assert.doesNotMatch(html, /Oggi: 4 serie/);
 });
+
+test("la dieta si apre sul giorno di oggi con i cinque pasti", () => {
+  const giorni = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"];
+  const oggi = giorni[(new Date().getDay() + 6) % 7];
+  const html = render("Diet", state());
+  assert.match(html, new RegExp(oggi), "deve aprirsi sul giorno corrente");
+  for (const pasto of ["Colazione", "Merenda mattina", "Pranzo", "Merenda", "Cena"]) {
+    assert.match(html, new RegExp(pasto), `manca ${pasto}`);
+  }
+  assert.match(html, /90 g fiocchi d&#x27;avena|90 g fiocchi d'avena/);
+  assert.match(html, /Cambia la merenda/);
+  assert.doesNotMatch(html, /<input/, "è solo consultazione: nessun campo da compilare");
+});

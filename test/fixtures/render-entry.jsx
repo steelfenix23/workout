@@ -7,6 +7,7 @@ import Today from "../../src/screens/Today.jsx";
 import Program from "../../src/screens/Program.jsx";
 import Progress from "../../src/screens/Progress.jsx";
 import More from "../../src/screens/More.jsx";
+import Diet from "../../src/screens/Diet.jsx";
 import Session from "../../src/screens/Session.jsx";
 import RunLog from "../../src/screens/RunLog.jsx";
 import ExerciseSheet from "../../src/components/ExerciseSheet.jsx";
@@ -14,7 +15,7 @@ import ExerciseSheet from "../../src/components/ExerciseSheet.jsx";
 const noop = () => {};
 
 export function render(name, state, props = {}) {
-  const Screens = { Today, Program, Progress, More, Session, RunLog, ExerciseSheet };
+  const Screens = { Today, Program, Progress, More, Session, RunLog, ExerciseSheet, Diet };
   const C = Screens[name];
   return renderToString(
     <StoreProvider initialState={state}>

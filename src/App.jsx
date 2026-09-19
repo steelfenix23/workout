@@ -3,6 +3,7 @@ import Today from "./screens/Today.jsx";
 import Program from "./screens/Program.jsx";
 import Progress from "./screens/Progress.jsx";
 import More from "./screens/More.jsx";
+import Diet from "./screens/Diet.jsx";
 import Session from "./screens/Session.jsx";
 import RunLog from "./screens/RunLog.jsx";
 import ExerciseSheet from "./components/ExerciseSheet.jsx";
@@ -10,6 +11,7 @@ import ExerciseSheet from "./components/ExerciseSheet.jsx";
 const TABS = [
   { id: "today", label: "Oggi" },
   { id: "program", label: "Scheda" },
+  { id: "diet", label: "Dieta" },
   { id: "progress", label: "Progressi" },
   { id: "more", label: "Altro" },
 ];
@@ -47,6 +49,7 @@ export default function App() {
       <div className="scroll" key={tab}>
         {tab === "today" && <Today open={open} />}
         {tab === "program" && <Program open={open} />}
+        {tab === "diet" && <Diet />}
         {tab === "progress" && <Progress open={open} />}
         {tab === "more" && <More />}
       </div>
