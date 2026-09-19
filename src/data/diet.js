@@ -14,8 +14,8 @@ export const COLAZIONE = {
   what: "90 g fiocchi d'avena · 250 ml latte intero · 30 g mandorle · 10 g miele",
   note: "Avena e latte in un barattolo in frigo la sera prima. La mattina aggiungi mandorle e miele.",
   alts: [
-    { name: "Piadina con fior di latte e pomodoro", kcal: 680, prot: 29,
-      what: "1 piadina (100 g) · 80 g fior di latte · pomodoro a fette · caffellatte con 200 ml di latte intero" },
+    { name: "Piadina con fior di latte e pomodoro", kcal: 690, prot: 27,
+      what: "1 piadina (100 g) · 100 g fior di latte · pomodoro a fette con 1 cucchiaio d'olio · un caffè se vuoi, senza latte. Martedì e venerdì hanno già mozzarella più tardi: quei giorni meglio l'avena" },
   ],
 };
 
