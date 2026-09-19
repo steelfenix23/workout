@@ -15,7 +15,7 @@ export const COLAZIONE = {
   note: "Avena e latte in un barattolo in frigo la sera prima. La mattina aggiungi mandorle e miele.",
   alts: [
     { name: "Piadina con fior di latte e pomodoro", kcal: 690, prot: 27,
-      what: "1 piadina (100 g) · 100 g fior di latte · pomodoro a fette con 1 cucchiaio d'olio · un caffè se vuoi, senza latte. Martedì, mercoledì e venerdì hanno già mozzarella più tardi: quei giorni meglio l'avena" },
+      what: "1 piadina (100 g) · 100 g fior di latte · pomodoro a fette con 1 cucchiaio d'olio · un caffè se vuoi, senza latte. Il martedì c'è la bufala a cena: quel giorno meglio l'avena" },
   ],
 };
 
@@ -25,24 +25,24 @@ export const PANCAKE = {
 };
 
 // ─── La merenda del pomeriggio ───────────────────────────────────────────────
-// Prima c'era affettato tutti i giorni: circa 490 g di salumi a settimana contro
-// i 50 g occasionali delle linee guida italiane. Ora la proteina è la carne
-// AVANZATA dalla cena della sera prima — carne fresca, non lavorata — e il
-// salume resta una volta a settimana.
+// Storia, perché è cambiata due volte:
+//  1. affettato tutti i giorni → ~490 g di salumi a settimana contro i 50 g
+//     occasionali delle linee guida CREA. Tolto.
+//  2. carne avanzata dalla cena → funzionava sui numeri, ma chiedeva di cucinare
+//     di più la sera prima e la carne fredda nel pane a Daniele non va. Tolta.
+// Ora: pane (o piadina) con un formaggio fresco, zero preparazione. Le proteine
+// scendono a ~20 g, ma la giornata resta sopra i 155 g: alla merenda si chiedono
+// soprattutto i carboidrati per l'allenamento delle 19.
 
-const PANE_MERENDA = "80 g pane";
 const NOTA_MERENDA = "Un'ora e mezza prima di allenarti: è il tuo pre-allenamento.";
 
-const merenda = (proteina, kcal, prot, extra = " · 10 g mandorle") => ({
-  label: "Merenda", kcal, prot, note: NOTA_MERENDA,
-  what: `${PANE_MERENDA} · ${proteina}${extra}`,
-});
+const merenda = (what, kcal, prot) => ({ label: "Merenda", kcal, prot, what, note: NOTA_MERENDA });
 
 const M = {
-  carne: (quale) => merenda(`70 g di ${quale}`, 395, 32),
-  uova: merenda("2 uova sode", 420, 22),
-  mozzarella: merenda("80 g di fior di latte", 422, 22, ""),
-  salume: merenda("70 g di affettato — il salume della settimana", 385, 32),
+  fiordilatte: merenda("80 g pane · 80 g fior di latte", 422, 22),
+  stracchino:  merenda("80 g pane · 70 g stracchino", 430, 20),
+  piadina:     merenda("1 piadina piccola (65 g) · 70 g stracchino", 425, 18),
+  salume:      merenda("80 g pane · 70 g affettato · 10 g mandorle — il salume della settimana", 385, 32),
 };
 
 // ─── Pranzi ──────────────────────────────────────────────────────────────────
@@ -76,11 +76,8 @@ const P = {
 
 // ─── Cene ────────────────────────────────────────────────────────────────────
 
-const AVANZO = "Cuocine 100 g in più: 70 g cotti sono la merenda di domani.";
-
-const CARNE = (nome, avanzo) => ({ name: nome, kcal: 645, prot: 45,
-  what: "180 g · 60 g pane (oppure 250 g di patate lesse) · verdure · 2 cucchiai olio",
-  ...(avanzo ? { note: AVANZO } : {}) });
+const CARNE = (nome) => ({ name: nome, kcal: 645, prot: 45,
+  what: "180 g · 60 g pane (oppure 250 g di patate lesse) · verdure · 2 cucchiai olio" });
 
 const C = {
   pesce:  { name: "Pesce", kcal: 645, prot: 45,
@@ -94,18 +91,17 @@ const C = {
 };
 
 // ─── La settimana: indice 0 = lunedì, come dow() in logic.js ────────────────
-// La merenda di ogni giorno usa l'avanzo della cena del giorno PRIMA. Dove la
-// sera prima non c'è carne (bufala, pesce, pizza) la merenda cambia fonte. Il
-// mercoledì usa il fior di latte e non le uova: a pranzo ce ne sono già tre.
+// Il salume sta al martedì perché quella sera c'è la bufala: così il formaggio
+// non compare due volte nello stesso giorno. Il pane si alterna con la piadina.
 
 export const WEEK = [
-  { day: "Lunedì",    pranzo: P.ragu,       alt: P.carbonara,  merenda: M.carne("carne avanzata da domenica"), cena: CARNE("Pollo", true) },
-  { day: "Martedì",   pranzo: P.pomodoro,   alt: P.zucchine,   merenda: M.carne("pollo avanzato da ieri"),     cena: C.bufala },
-  { day: "Mercoledì", pranzo: P.pesto,      alt: P.ragu,       merenda: M.mozzarella,                           cena: CARNE("Tacchino", true) },
-  { day: "Giovedì",   pranzo: P.fagioli,    alt: P.lenticchie, merenda: M.carne("tacchino avanzato da ieri"),  cena: C.pesce },
-  { day: "Venerdì",   pranzo: P.lenticchie, alt: P.zucca,      merenda: M.mozzarella,                           cena: CARNE("Manzo", true) },
-  { day: "Sabato",    pranzo: P.insalata,   alt: P.aglio,      merenda: M.carne("manzo avanzato da ieri"),     cena: C.pizza },
-  { day: "Domenica",  pranzo: P.forno,      alt: P.carbonara,  merenda: M.salume,                               cena: CARNE("Maiale o carne a scelta", true) },
+  { day: "Lunedì",    pranzo: P.ragu,       alt: P.carbonara,  merenda: M.fiordilatte, cena: CARNE("Pollo") },
+  { day: "Martedì",   pranzo: P.pomodoro,   alt: P.zucchine,   merenda: M.salume,      cena: C.bufala },
+  { day: "Mercoledì", pranzo: P.pesto,      alt: P.ragu,       merenda: M.piadina,     cena: CARNE("Tacchino") },
+  { day: "Giovedì",   pranzo: P.fagioli,    alt: P.lenticchie, merenda: M.fiordilatte, cena: C.pesce },
+  { day: "Venerdì",   pranzo: P.lenticchie, alt: P.zucca,      merenda: M.piadina,     cena: CARNE("Manzo") },
+  { day: "Sabato",    pranzo: P.insalata,   alt: P.aglio,      merenda: M.stracchino,  cena: C.pizza },
+  { day: "Domenica",  pranzo: P.forno,      alt: P.carbonara,  merenda: M.stracchino,  cena: CARNE("Maiale o carne a scelta") },
 ];
 
 export function dayTotals(d) {
@@ -123,22 +119,22 @@ export const SWAP_CARBO = [
 ];
 
 export const SWAP_PROT = [
-  ["Carne avanzata dalla cena", "70 g"], ["Uova sode", "2"], ["Fior di latte", "80 g"],
+  ["Fior di latte", "80 g"], ["Stracchino", "70 g"], ["Mozzarella di bufala", "70 g"],
   ["Barretta proteica", "1"], ["Proteine in polvere, se le hai", "1 misurino"],
   ["Affettato, una volta a settimana", "70 g"],
 ];
 
 export const COMBO = [
   { where: "Casa", name: "Frullato d'avena", what: "250 ml latte intero · 30 g avena · 10 g miele (+ proteine in polvere se le hai), frullato" },
-  { where: "Casa", name: "Piadina e pollo", what: "65 g piadina · 70 g pollo avanzato · 10 g mandorle" },
-  { where: "Casa", name: "Uova sode e gallette", what: "2 uova · 40 g gallette · 10 g mandorle" },
+  { where: "Casa", name: "Piadina e stracchino", what: "1 piadina piccola (65 g) · 70 g stracchino" },
+  { where: "Ovunque", name: "Gallette e fior di latte", what: "55 g gallette di riso · 80 g fior di latte. Stanno in borsa senza sbriciolarsi" },
   { where: "Ufficio", name: "Barretta e frutta secca", what: "1 barretta (almeno 20 g proteine, niente versioni light) · 30 g mandorle" },
 ];
 
 // ─── Le regole ───────────────────────────────────────────────────────────────
 
 export const RULES = [
-  { title: "Salumi al massimo una volta a settimana", body: "Prosciutto, bresaola, speck, fesa di tacchino e pancetta sono carni lavorate. Le linee guida italiane dicono 50 g, occasionalmente. Per questo la merenda si fa con la carne avanzata dalla cena." },
+  { title: "Salumi al massimo una volta a settimana", body: "Prosciutto, bresaola, speck, fesa di tacchino e pancetta sono carni lavorate. Le linee guida italiane dicono 50 g, occasionalmente. Per questo alla merenda compaiono una volta sola, il martedì." },
   { title: "Le patate sostituiscono il pane, non le verdure", body: "250 g di patate lesse valgono 60 g di pane: la sera che le fai, salti il pane." },
   { title: "Insalata, rucola, pomodorini: a volontà", body: "Sono verdure vere. Il cucchiaio d'olio sopra è già contato." },
   { title: "Una frittata di 4 uova sostituisce la carne", body: "In qualunque cena. Stesse calorie, un po' meno proteine: va bene." },
@@ -150,6 +146,6 @@ export const RULES = [
 export const OFFICE = [
   "Primo più secondo più il pane del cestino. Mai solo il primo: al ristorante è metà porzione.",
   "Pizza intera: una margherita va bene.",
-  "La merenda portala da casa: pane e carne avanzata in un contenitore, più le mandorle.",
+  "La merenda portala da casa: pane o gallette e un formaggio fresco in un contenitore.",
   "Colazione e cena restano quelle di casa.",
 ];

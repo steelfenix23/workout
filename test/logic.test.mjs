@@ -207,7 +207,7 @@ test("la dieta nell'app coincide col documento stampabile", async () => {
   const { WEEK, dayTotals } = await import("../src/data/diet.js");
   // Totali pubblicati in "Le Calorie Mancanti": se si cambia un pasto nell'app
   // senza aggiornare il documento (o viceversa), questo test lo segnala.
-  const documento = [[3270, 185], [3340, 154], [3292, 168], [3190, 169], [3257, 161], [3485, 173], [3315, 184]];
+  const documento = [[3297, 175], [3330, 154], [3295, 164], [3217, 159], [3260, 157], [3520, 161], [3360, 172]];
   assert.equal(WEEK.length, 7);
   WEEK.forEach((d, i) => {
     const t = dayTotals(d);
@@ -232,14 +232,22 @@ test("i salumi compaiono al massimo una volta a settimana nelle merende", async 
   assert.ok(conSalume.length <= 1, `salumi alla merenda in: ${conSalume.join(", ")}`);
 });
 
-test("ogni merenda con carne avanzata ha una cena con carne la sera prima", async () => {
+test("nessuna merenda richiede di cucinare la sera prima", async () => {
+  // Preferenza esplicita di Daniele: niente carne avanzata, niente "cuocine di più".
   const { WEEK } = await import("../src/data/diet.js");
-  WEEK.forEach((d, i) => {
-    if (!/avanzat/.test(d.merenda.what)) return;
-    const ieri = WEEK[(i + 6) % 7];
-    assert.ok(ieri.cena.note && /merenda di domani/.test(ieri.cena.note),
-      `${d.day}: la merenda usa un avanzo ma la cena di ${ieri.day} non dice di cucinarne di più`);
-  });
+  for (const d of WEEK) {
+    assert.doesNotMatch(d.merenda.what, /avanzat/i, `${d.day}: la merenda usa un avanzo`);
+    assert.doesNotMatch(JSON.stringify(d.cena), /in più|merenda di domani/i, `${d.day}: la cena chiede di cucinare di più`);
+  }
+});
+
+test("il formaggio della merenda non si somma alla bufala della sera", async () => {
+  const { WEEK } = await import("../src/data/diet.js");
+  for (const d of WEEK) {
+    if (/bufala/i.test(d.cena.name)) {
+      assert.doesNotMatch(d.merenda.what, /latte|stracchino|mozzarella/i, `${d.day}: formaggio a merenda e bufala a cena`);
+    }
+  }
 });
 
 test("nessun giorno supera le 4 uova fra pancake, pranzo e merenda", async () => {
