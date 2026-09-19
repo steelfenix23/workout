@@ -218,6 +218,24 @@ export const EXERCISES = [
     video: yt("nordic hamstring curl tecnica progressione principianti"),
   },
   {
+    id: "leg_curl_manubrio", name: "Leg Curl con Manubrio", muscle: "Femorali", equipment: "Manubrio + panca",
+    primary: "Femorali (flessione del ginocchio)", secondary: "Polpacci", entryWeight: 5.5,
+    steps: [
+      "Sdraiati a pancia in giù sulla panca, con le ginocchia appena oltre il bordo.",
+      "Stringi un manubrio in verticale fra i piedi, con la testa appoggiata sulle suole delle scarpe.",
+      "Piega le ginocchia portando il manubrio verso i glutei, senza staccare il bacino dalla panca.",
+      "Scendi lentamente in 3-4 secondi fino a gambe quasi distese: la discesa è la parte che conta.",
+    ],
+    mistakes: [
+      "Sollevare il bacino per aiutarti: il lavoro passa alla schiena.",
+      "Scendere veloce: la discesa lenta è quella che protegge il femorale.",
+      "Partire pesante: il limite è la presa dei piedi sul manubrio, non la forza. Parti dal più leggero.",
+    ],
+    tempo: "1s salita · 3-4s discesa, sempre",
+    note: "Sostituisce il Nordic curl, che con il tapis roulant come appoggio non era praticabile. È meno efficace nella prevenzione, ma lavora lo stesso movimento — piegare il ginocchio — con la discesa lenta. Se un giorno compri una palla da ginnastica, c'è un'alternativa migliore.",
+    video: yt("leg curl con manubrio sdraiato prono femorali tecnica"),
+  },
+  {
     id: "hip_thrust", name: "Hip Thrust a Terra", muscle: "Glutei", equipment: "Manubrio",
     primary: "Glutei", secondary: "Femorali, core", entryWeight: 20, singleWeight: true,
     steps: [
@@ -276,7 +294,9 @@ export const EX = Object.fromEntries(EXERCISES.map((e) => [e.id, e]));
 
 // ─── Le quattro sedute ───────────────────────────────────────────────────────
 // legs: true      → seduta con gambe pesanti (regola: mai il giorno prima della partita)
-// nordic: true    → contiene il Nordic curl (regola: almeno 3 giorni prima della partita)
+// nordic: true    → seduta dedicata ai femorali (regola: almeno 3 giorni prima della partita).
+//                   Il nome è rimasto dal Nordic curl, che è stato sostituito ma può tornare:
+//                   la definizione dell'esercizio è ancora qui sopra.
 
 export const DAYS = [
   {
@@ -309,10 +329,10 @@ export const DAYS = [
     ],
   },
   {
-    id: "lower_b", name: "Lower B", subtitle: "Nordic e unilaterale", minutes: 30, legs: true, nordic: true,
+    id: "lower_b", name: "Lower B", subtitle: "Femorali e unilaterale", minutes: 30, legs: true, nordic: true,
     items: [
       { exId: "bulgarian", sets: 3, repsMin: 8, repsMax: 12 },
-      { exId: "nordic_curl", sets: 2, repsMin: 3, repsMax: 3 },
+      { exId: "leg_curl_manubrio", sets: 3, repsMin: 10, repsMax: 15 },
       { exId: "hip_thrust", sets: 3, repsMin: 12, repsMax: 15 },
       { exId: "calf_unilaterale", sets: 3, repsMin: 12, repsMax: 15 },
       { exId: "plank", sets: 3, repsMin: 30, repsMax: 60 },

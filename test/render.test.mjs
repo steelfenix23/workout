@@ -4,6 +4,7 @@ import { build } from "esbuild";
 import { join } from "node:path";
 import { mkdirSync } from "node:fs";
 import { ROTATION, DAY } from "../src/data/program.js";
+import { todayISO } from "../src/data/dates.js";
 
 let render;
 
@@ -26,9 +27,12 @@ before(async () => {
   render = (...args) => mod.render(...args).replaceAll("<!-- -->", "");
 });
 
+// La data d'inizio è OGGI, non una data fissa: questi test descrivono un utente
+// in settimana 1. Con una data scritta a mano diventavano falsi da soli dopo due
+// settimane — e siccome il deploy esegue i test, bloccavano ogni pubblicazione.
 const state = (over = {}) => ({
   schemaVersion: 1,
-  profile: { startedAt: "2026-09-02", heightCm: 185, matchDay: 3, summerMode: false, weightStep: 1.5 },
+  profile: { startedAt: todayISO(), heightCm: 185, matchDay: 3, summerMode: false, weightStep: 1.5 },
   rotation: [...ROTATION], rotationPos: 1,
   sessions: [], runs: [], weights: [], matches: [], legacy: [],
   settings: { supabaseUrl: "", supabaseKey: "", lastSync: null },
@@ -71,7 +75,7 @@ test("Scheda elenca tutte le sedute e i carichi", () => {
   const html = render("Program", state());
   for (const d of Object.values(DAY)) assert.match(html, new RegExp(d.name));
   assert.match(html, /Le cinque regole/);
-  assert.match(html, /Nordic/);
+  assert.match(html, /Leg Curl con Manubrio/);
 });
 
 test("Progressi regge sia lo stato vuoto sia lo storico", () => {

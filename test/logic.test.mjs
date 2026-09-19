@@ -99,11 +99,11 @@ test("regola: niente gambe pesanti il giorno prima della partita", () => {
   assert.equal(DAY[r.suggest].legs, undefined, "l'alternativa non carica le gambe");
 });
 
-test("regola: il Nordic curl vuole tre giorni pieni prima della partita", () => {
+test("regola: la seduta dei femorali vuole tre giorni pieni prima della partita", () => {
   const s = base({ profile: { ...base().profile, matchDay: 3 } }); // giovedì
   const martedi = checkRules(s, "lower_b", "2026-09-08");
   assert.ok(martedi, "a due giorni dalla partita deve avvisare");
-  assert.match(martedi.title, /Nordic/);
+  assert.match(martedi.title, /femorali/);
   const venerdi = checkRules(s, "lower_b", "2026-09-11"); // 6 giorni prima
   assert.equal(venerdi, null, "a distanza di sicurezza non deve avvisare");
 });

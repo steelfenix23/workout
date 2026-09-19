@@ -85,8 +85,8 @@ export function checkRules(state, dayId, iso = todayISO()) {
   if (day.nordic && inDays < 3 && inDays > 0) {
     return {
       severity: "warn",
-      title: "Il Nordic curl è troppo vicino alla partita",
-      body: `Giochi fra ${inDays} ${inDays === 1 ? "giorno" : "giorni"}. I dolori dei Nordic durano 3-4 giorni: rischi di andare in campo con i femorali a pezzi. Meglio anticipare un'altra seduta e fare questa dopo la partita.`,
+      title: "La seduta dei femorali è troppo vicina alla partita",
+      body: `Giochi fra ${inDays} ${inDays === 1 ? "giorno" : "giorni"}. Il lavoro eccentrico sui femorali lascia i muscoli indolenziti per un paio di giorni: rischi di andare in campo con le gambe pesanti. Meglio anticipare un'altra seduta e fare questa dopo la partita.`,
       suggest: alternativeTo(state, dayId),
     };
   }
