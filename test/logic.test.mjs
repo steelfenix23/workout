@@ -207,7 +207,7 @@ test("la dieta nell'app coincide col documento stampabile", async () => {
   const { WEEK, dayTotals } = await import("../src/data/diet.js");
   // Totali pubblicati in "Le Calorie Mancanti": se si cambia un pasto nell'app
   // senza aggiornare il documento (o viceversa), questo test lo segnala.
-  const documento = [[3260, 185], [3330, 154], [3240, 183], [3180, 169], [3220, 171], [3490, 168], [3315, 184]];
+  const documento = [[3270, 185], [3340, 154], [3275, 173], [3190, 169], [3257, 161], [3500, 168], [3315, 184]];
   assert.equal(WEEK.length, 7);
   WEEK.forEach((d, i) => {
     const t = dayTotals(d);
@@ -223,4 +223,21 @@ test("la dieta non contiene gli alimenti esclusi", async () => {
   for (const vietato of ["banana", "burro d'arachidi", "ceci", "grana", "parmigiano"]) {
     assert.ok(!testo.includes(vietato), `compare "${vietato}"`);
   }
+});
+
+test("i salumi compaiono al massimo una volta a settimana nelle merende", async () => {
+  const { WEEK } = await import("../src/data/diet.js");
+  const salumi = /affettato|bresaola|prosciutto|speck|salame|pancetta/i;
+  const conSalume = WEEK.filter((d) => salumi.test(d.merenda.what)).map((d) => d.day);
+  assert.ok(conSalume.length <= 1, `salumi alla merenda in: ${conSalume.join(", ")}`);
+});
+
+test("ogni merenda con carne avanzata ha una cena con carne la sera prima", async () => {
+  const { WEEK } = await import("../src/data/diet.js");
+  WEEK.forEach((d, i) => {
+    if (!/avanzat/.test(d.merenda.what)) return;
+    const ieri = WEEK[(i + 6) % 7];
+    assert.ok(ieri.cena.note && /merenda di domani/.test(ieri.cena.note),
+      `${d.day}: la merenda usa un avanzo ma la cena di ${ieri.day} non dice di cucinarne di più`);
+  });
 });

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { todayISO } from "../data/store.jsx";
 import { dow } from "../data/logic.js";
 import {
-  WEEK, COLAZIONE, PANCAKE, merenda, dayTotals,
+  WEEK, COLAZIONE, PANCAKE, dayTotals,
   SWAP_CARBO, SWAP_PROT, COMBO, RULES, OFFICE,
 } from "../data/diet.js";
 
@@ -15,7 +15,7 @@ export default function Diet() {
   const [i, setI] = useState(oggi);
   const d = WEEK[i];
   const tot = dayTotals(d);
-  const m = merenda(d.affettato);
+  const m = d.merenda;
 
   return (
     <>
@@ -117,7 +117,12 @@ function Meal({ m, label, main, alt }) {
           <small>{alt.what}</small>
         </p>
       )}
-      {m.alt && <p className="tiny">{m.alt}</p>}
+      {m.alts && m.alts.map((a) => (
+        <p className="meal-alt" key={a.name}>
+          <b>oppure</b> {a.name}
+          <small>{a.what}</small>
+        </p>
+      ))}
     </div>
   );
 }
