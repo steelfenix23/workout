@@ -125,7 +125,7 @@ export default function Program({ open }) {
       <div className="card">
         <p className="eyebrow">Le cinque regole</p>
         <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13.5, lineHeight: 1.5, color: "var(--ink-2)" }}>
-          <li>Mai gambe pesanti il giorno prima del calcetto.</li>
+          <li>Mai gambe pesanti il giorno prima o il giorno stesso del calcetto.</li>
           <li>Il giorno dopo la partita è sempre parte alta.</li>
           <li>La camminata in salita si può mettere ovunque: è recupero attivo.</li>
           <li>Gli intervalli non stanno mai a meno di 24 ore dalle gambe pesanti.</li>

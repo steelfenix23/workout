@@ -303,7 +303,7 @@ export const DAYS = [
     id: "upper_a", name: "Upper A", subtitle: "Spinta", minutes: 40,
     items: [
       { exId: "panca_piana", sets: 4, repsMin: 6, repsMax: 10 },
-      { exId: "trazioni", sets: 5, repsMin: 3, repsMax: 3 },
+      { exId: "trazioni", sets: 5, repsMin: 3, repsMax: 6 },
       { exId: "military_press", sets: 3, repsMin: 8, repsMax: 12 },
       { exId: "rematore", sets: 3, repsMin: 8, repsMax: 12 },
       { exId: "alzate_laterali", sets: 2, repsMin: 12, repsMax: 20 },
@@ -323,7 +323,7 @@ export const DAYS = [
     items: [
       { exId: "rematore", sets: 4, repsMin: 6, repsMax: 10, weightBump: 1.5 },
       { exId: "panca_inclinata", sets: 3, repsMin: 8, repsMax: 12 },
-      { exId: "dips", sets: 4, repsMin: 6, repsMax: 6 },
+      { exId: "dips", sets: 4, repsMin: 6, repsMax: 10 },
       { exId: "alzate_posteriori", sets: 3, repsMin: 15, repsMax: 20 },
       { exId: "curl_martello", sets: 2, repsMin: 10, repsMax: 15 },
     ],

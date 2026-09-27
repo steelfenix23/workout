@@ -5,6 +5,7 @@ import {
   estimated1RM, lastSetsFor, weekStats, personalRecords, nextMatchIn,
   nextRun, checkRunRules,
 } from "../src/data/logic.js";
+import { todayISO } from "../src/data/dates.js";
 import { DAY, ROTATION, phaseForWeek, runTargetForWeek, runPlanForWeek, EXERCISES } from "../src/data/program.js";
 
 const base = (over = {}) => ({
@@ -44,7 +45,9 @@ test("le fasi coprono le 12 settimane senza buchi", () => {
 });
 
 test("in riadattamento i carichi sono scontati e le serie limitate", () => {
-  const s = base();
+  // Inizio OGGI: la fase dipende dalla data corrente, e una data fissa faceva
+  // uscire il test dal riadattamento da solo dopo due settimane.
+  const s = base({ profile: { ...base().profile, startedAt: todayISO() } });
   const item = DAY.upper_a.items[0]; // panca 4 serie
   const sug = suggestFor(s, "upper_a", item);
   assert.equal(sug.sets, 2, "in fase 1 al massimo 2 serie");
@@ -257,4 +260,20 @@ test("nessun giorno supera le 4 uova fra pancake, pranzo e merenda", async () =>
     const n = 1 + uova(d.pranzo.what) + uova(d.merenda.what);   // 1 = l'uovo del pancake
     assert.ok(n <= 4, `${d.day}: ${n} uova`);
   }
+});
+
+test("regola: niente gambe pesanti il giorno stesso della partita", () => {
+  const s = base({ profile: { ...base().profile, matchDay: 3 } });   // giovedì
+  const r = checkRules(s, "lower_a", "2026-09-10");                  // è giovedì
+  assert.ok(r, "il giorno della partita deve avvisare");
+  assert.equal(DAY[r.suggest].legs, undefined);
+});
+
+test("a corpo libero le ripetizioni salgono di una quando tutte le serie sono uguali", () => {
+  const s = base({ profile: { ...base().profile, startedAt: "2026-06-01" } });
+  s.sessions.push(session("upper_a", "2026-09-01", [1, 2, 3].map((n) =>
+    ({ exId: "trazioni", setNumber: n, weight: 0, reps: 3, done: true }))));
+  const item = DAY.upper_a.items.find((i) => i.exId === "trazioni");
+  const g = suggestFor(s, "upper_a", item);
+  assert.equal(g.reps, 4, "da 3/3/3 si passa a 4");
 });

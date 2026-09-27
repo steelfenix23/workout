@@ -90,6 +90,14 @@ export function checkRules(state, dayId, iso = todayISO()) {
       suggest: alternativeTo(state, dayId),
     };
   }
+  if (day.legs && inDays === 0) {
+    return {
+      severity: "warn",
+      title: "Oggi giochi",
+      body: "Gambe pesanti e partita lo stesso giorno vuol dire andare in campo con i muscoli appena svuotati: è la situazione in cui ci si strappa un flessore. Fai oggi una parte alta e sposta questa seduta a dopo la partita.",
+      suggest: alternativeTo(state, dayId),
+    };
+  }
   if (day.legs && inDays === 1) {
     return {
       severity: "warn",
@@ -200,6 +208,14 @@ export function suggestFor(state, dayId, item, sessionId = null) {
   }
 
   const bestReps = Math.max(...last.sets.map((s) => s.reps));
+  // A corpo libero il carico non cambia: l'unica leva sono le ripetizioni. Se
+  // tutte le serie sono arrivate allo stesso numero, si prova a farne una in più.
+  if (ex.bodyweight && !ex.timed && last.sets.every((s) => s.reps >= bestReps) && bestReps < item.repsMax) {
+    return {
+      sets, weight: w, reps: bestReps + 1, progressed: true,
+      reason: `Tutte le serie a ${bestReps}: prova ${bestReps + 1}, sempre lontano dal cedimento. Il massimo del range è ${item.repsMax}, poi si aggiunge la zavorra.`,
+    };
+  }
   return {
     sets, weight: w, reps: Math.min(bestReps, item.repsMax), progressed: false,
     reason: `Ultima volta ${fmt(w)} kg × ${last.sets.map((s) => s.reps).join("/")}. Obiettivo: ${item.repsMax} in tutte e ${sets}.`,
