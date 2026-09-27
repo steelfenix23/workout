@@ -55,20 +55,27 @@ export function advanceRotation(state) {
 // ─── Le cinque regole ────────────────────────────────────────────────────────
 
 /**
- * Quando cade la prossima partita. Usa il giorno abituale dichiarato nel profilo;
- * se è "variabile" guarda l'ultima partita giocata e assume cadenza settimanale.
- * Restituisce null quando non c'è modo di saperlo: in quel caso nessuna regola scatta.
+ * Quando cade la prossima partita, in giorni da oggi (0 = oggi).
+ *
+ * 1. Una partita registrata per oggi o per un giorno futuro: è la fonte più
+ *    affidabile, perché il calcetto cambia giorno e si può segnare in anticipo.
+ * 2. Il giorno fisso dichiarato nel profilo, se c'è.
+ * 3. Altrimenti null: nessuna regola scatta.
+ *
+ * Prima, in assenza del giorno fisso, si deduceva il giorno della settimana
+ * dall'ultima partita giocata. Con un calcetto che cambia giorno quella stima
+ * sbagliava metà delle volte, facendo saltare le gambe senza motivo. Meglio
+ * nessun avviso che uno sbagliato.
  */
 export function nextMatchIn(state, iso = todayISO()) {
+  const planned = state.matches.map((m) => m.date).filter((d) => d >= iso).sort()[0];
+  const fromPlanned = planned ? daysBetween(iso, planned) : null;
+
   const { matchDay } = state.profile;
-  if (matchDay !== null && matchDay !== undefined) {
-    const delta = (matchDay - dow(iso) + 7) % 7;
-    return delta;
-  }
-  const last = [...state.matches].sort((a, b) => b.date.localeCompare(a.date))[0];
-  if (!last) return null;
-  const delta = (dow(last.date) - dow(iso) + 7) % 7;
-  return delta;
+  const fromDay = matchDay !== null && matchDay !== undefined ? (matchDay - dow(iso) + 7) % 7 : null;
+
+  const candidates = [fromPlanned, fromDay].filter((v) => v !== null);
+  return candidates.length ? Math.min(...candidates) : null;
 }
 
 /**

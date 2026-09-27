@@ -11,11 +11,12 @@ import Diet from "../../src/screens/Diet.jsx";
 import Session from "../../src/screens/Session.jsx";
 import RunLog from "../../src/screens/RunLog.jsx";
 import ExerciseSheet from "../../src/components/ExerciseSheet.jsx";
+import MatchSheet from "../../src/components/MatchSheet.jsx";
 
 const noop = () => {};
 
 export function render(name, state, props = {}) {
-  const Screens = { Today, Program, Progress, More, Session, RunLog, ExerciseSheet, Diet };
+  const Screens = { Today, Program, Progress, More, Session, RunLog, ExerciseSheet, Diet, MatchSheet };
   const C = Screens[name];
   return renderToString(
     <StoreProvider initialState={state}>

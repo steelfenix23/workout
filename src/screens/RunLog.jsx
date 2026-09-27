@@ -16,6 +16,7 @@ export default function RunLog({ onClose, preset = {} }) {
   const [km, setKm] = useState("");
   const [incline, setIncline] = useState("");
   const [effort, setEffort] = useState("giusta");
+  const [date, setDate] = useState(todayISO());
 
   const iso = todayISO();
   const phase = currentPhase(state);
@@ -34,7 +35,7 @@ export default function RunLog({ onClose, preset = {} }) {
   function save() {
     update((s) => {
       s.runs.push({
-        id: newId(), date: iso, type,
+        id: newId(), date, type,
         minutes: min, km: dist,
         incline: Number(incline) || 0,
         effort,
@@ -65,6 +66,12 @@ export default function RunLog({ onClose, preset = {} }) {
           {preset.type === type && preset.minutes && (
             <p className="tiny"><b>Prevista oggi:</b> {preset.minutes} minuti.</p>
           )}
+        </div>
+
+        <div className="field">
+          <label htmlFor="rundate">Giorno</label>
+          <input id="rundate" type="date" value={date} max={iso}
+                 onChange={(e) => setDate(e.target.value || iso)} />
         </div>
 
         <div className="grid2">

@@ -154,3 +154,9 @@ test("la dieta si apre sul giorno di oggi con i cinque pasti", () => {
   assert.match(html, /Cambia la merenda/);
   assert.doesNotMatch(html, /<input/, "è solo consultazione: nessun campo da compilare");
 });
+
+test("il foglio del calcetto permette di scegliere la data", () => {
+  const html = render("MatchSheet", state({ matches: [{ date: "2026-08-27" }] }));
+  assert.match(html, /type="date"/);
+  assert.match(html, /Elimina/);
+});

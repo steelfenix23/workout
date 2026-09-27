@@ -277,3 +277,18 @@ test("a corpo libero le ripetizioni salgono di una quando tutte le serie sono ug
   const g = suggestFor(s, "upper_a", item);
   assert.equal(g.reps, 4, "da 3/3/3 si passa a 4");
 });
+
+test("una partita segnata in anticipo fa scattare le regole", () => {
+  const s = base();                                   // nessun giorno fisso
+  s.matches.push({ date: "2026-09-10" });             // giovedì, registrata in anticipo
+  assert.equal(nextMatchIn(s, "2026-09-08"), 2);
+  assert.ok(checkRules(s, "lower_a", "2026-09-09"), "il giorno prima deve avvisare");
+});
+
+test("senza giorno fisso l'app non deduce il giorno dall'ultima partita", () => {
+  // Il calcetto cambia giorno: dedurlo dall'ultima partita sbagliava metà delle volte.
+  const s = base();
+  s.matches.push({ date: "2026-09-02" });             // mercoledì passato
+  assert.equal(nextMatchIn(s, "2026-09-08"), null);
+  assert.equal(checkRules(s, "lower_a", "2026-09-08"), null);
+});

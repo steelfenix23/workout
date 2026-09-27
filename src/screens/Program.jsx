@@ -72,7 +72,7 @@ export default function Program({ open }) {
         </div>
         <p className="tiny">
           {inDays === null
-            ? "Senza un giorno impostato non posso avvisarti quando una seduta cade troppo vicino alla partita."
+            ? "Se giochi in giorni diversi lascia «variabile» e segna ogni partita in anticipo da Oggi → Calcetto: è da lì che l'app sa quando tenere lontane le gambe pesanti."
             : inDays === 0
               ? "La partita è oggi."
               : `Prossima partita fra ${inDays} ${inDays === 1 ? "giorno" : "giorni"}. Le gambe pesanti non vanno il giorno prima, il Nordic curl vuole tre giorni pieni.`}

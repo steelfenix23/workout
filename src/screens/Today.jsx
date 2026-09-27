@@ -45,12 +45,6 @@ export default function Today({ open }) {
     open({ kind: "session", sessionId: id });
   }
 
-  function logMatch() {
-    update((s) => {
-      if (!s.matches.some((m) => m.date === iso)) s.matches.push({ date: iso });
-      return s;
-    });
-  }
 
   const monday = addDays(iso, -dow(iso));
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
@@ -88,8 +82,8 @@ export default function Today({ open }) {
       </div>
 
       <div className="btnrow">
-        <button className="btn ghost" onClick={logMatch}>
-          {week.matches.some((m) => m.date === iso) ? "Calcetto ✓" : "Oggi calcetto"}
+        <button className="btn ghost" onClick={() => open({ kind: "match" })}>
+          {state.matches.some((m) => m.date === iso) ? "Calcetto ✓" : "Calcetto"}
         </button>
         <button className="btn ghost" onClick={() => open({ kind: "run" })}>Registra corsa</button>
       </div>
