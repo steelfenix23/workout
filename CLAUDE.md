@@ -12,8 +12,11 @@ leggibili su schermo piccolo, tabelle brevi.
 - Si allena **solo in casa**: manubri regolabili 4-32 kg (scatti da 1,5 kg), panca regolabile,
   sbarra, parallele, giubbotto zavorra fino a 20 kg, tapis roulant con inclinazione.
 - Orari: feriali 19-20, festivi mattina. Sonno 8-10 h, stress da lavoro 7-8/10. Nessun infortunio.
-- **Obiettivo doppio:** massa muscolare + fiato per il **calcetto settimanale** (cambia giorno:
-  mar/mer/gio). A settembre 1 km a 9-10 km/h era il suo limite.
+- **Obiettivo (rivisto il 25/10):** **crescere fisicamente per l'estetica** è l'obiettivo primario.
+  Il calcetto settimanale (cambia giorno: mar/mer/gio) e quindi la corsa diventano **secondari**.
+  A settembre 1 km a 9-10 km/h era il suo limite.
+- Alcune sedute le interrompe apposta per mal di testa o stanchezza da lavoro: è una scelta
+  sensata, non mancanza d'impegno. Non lo spingere a "stringere i denti".
 - Non aveva mai allenato le gambe. Preferisce **tante sedute brevi** (limite 60 min, meglio meno).
 - **Si è fermato a luglio per il caldo** (casa senza climatizzatore): a giugno attivare la
   variante estiva, non lasciarlo sparire.
