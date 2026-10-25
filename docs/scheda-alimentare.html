@@ -1,0 +1,870 @@
+<title>Le Calorie Mancanti</title>
+<style>
+  :root {
+    --ground: #F1F4F3; --surface: #FFFFFF; --surface-2: #E9EEEC;
+    --ink: #14191C; --ink-2: #3D4A4E; --muted: #5C6A6E;
+    --hairline: #D6DEDB; --hairline-strong: #BCC7C3;
+    --forza: #C9501C; --forza-soft: #FBEDE6;
+    --corsa: #0A8C80; --corsa-soft: #E3F1EF;
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --measure: 34rem; --wide: 62rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #11161A; --surface: #182027; --surface-2: #202A31;
+      --ink: #E9F0ED; --ink-2: #BCC9C9; --muted: #8B9BA0;
+      --hairline: #2A353C; --hairline-strong: #3A474F;
+      --forza: #E8622A; --forza-soft: #2B1D17;
+      --corsa: #2FA8A0; --corsa-soft: #14282A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #11161A; --surface: #182027; --surface-2: #202A31;
+    --ink: #E9F0ED; --ink-2: #BCC9C9; --muted: #8B9BA0;
+    --hairline: #2A353C; --hairline-strong: #3A474F;
+    --forza: #E8622A; --forza-soft: #2B1D17;
+    --corsa: #2FA8A0; --corsa-soft: #14282A;
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--ground); color: var(--ink); font-family: var(--serif);
+         font-size: 17px; line-height: 1.62; margin: 0; padding: 0 1.25rem 6rem;
+         -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: var(--wide); margin: 0 auto; }
+  .col { max-width: var(--measure); }
+
+  .mast { padding: 4.5rem 0 2.5rem; border-bottom: 1px solid var(--hairline);
+          display: flex; flex-direction: column; gap: 1.1rem; }
+  .mast h1 { font-family: var(--sans); font-size: clamp(2.4rem, 7.5vw, 4.1rem); font-weight: 800;
+             letter-spacing: -.035em; line-height: .95; margin: 0; text-wrap: balance; }
+  .mast .standfirst { font-size: 1.16rem; color: var(--ink-2); max-width: 38rem; margin: 0; }
+  .mast .meta { font-family: var(--sans); font-size: .74rem; font-weight: 600; letter-spacing: .1em;
+                text-transform: uppercase; color: var(--muted); display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; }
+
+  section { padding: 3.5rem 0 0; }
+  .eyebrow { font-family: var(--sans); font-size: .72rem; font-weight: 700; letter-spacing: .14em;
+             text-transform: uppercase; color: var(--muted); margin: 0 0 .7rem;
+             display: flex; align-items: center; gap: .6rem; }
+  .eyebrow::before { content: ""; width: 1.6rem; height: 2px; background: var(--hairline-strong); flex: none; }
+  h2 { font-family: var(--sans); font-size: clamp(1.7rem, 4vw, 2.3rem); font-weight: 750;
+       letter-spacing: -.025em; line-height: 1.1; margin: 0 0 1rem; text-wrap: balance; }
+  h3 { font-family: var(--sans); font-size: 1.12rem; font-weight: 700; letter-spacing: -.01em; margin: 2.2rem 0 .6rem; }
+  p { margin: 0 0 1.05rem; }
+  em.lede { font-style: normal; font-weight: 700; }
+
+  .pull { font-family: var(--sans); font-size: clamp(1.25rem, 3vw, 1.55rem); font-weight: 650;
+          letter-spacing: -.02em; line-height: 1.28; border-left: 3px solid var(--forza);
+          padding: .1rem 0 .1rem 1.3rem; margin: 2rem 0; max-width: 38rem; text-wrap: balance; }
+
+  .gap { display: grid; gap: 1rem; margin: 2rem 0; max-width: 40rem; }
+  .gapbar { background: var(--surface); border: 1px solid var(--hairline); border-radius: 8px; padding: 1rem 1.1rem; }
+  .gapbar .lab { font-family: var(--sans); font-size: .8rem; font-weight: 700; letter-spacing: .05em;
+                 text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; margin-bottom: .55rem; }
+  .gapbar .lab b { font-family: var(--mono); font-size: 1.05rem; color: var(--ink); letter-spacing: 0; }
+  .track { height: 12px; border-radius: 6px; background: var(--surface-2); overflow: hidden; }
+  .track i { display: block; height: 100%; border-radius: 6px; }
+
+  /* ── La scheda: le sette giornate ─────────────────────── */
+  .days { display: flex; flex-direction: column; gap: 1.25rem; margin: 2rem 0; }
+  .day { background: var(--surface); border: 1px solid var(--hairline); border-radius: 10px; overflow: hidden; }
+  .day > header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+                  flex-wrap: wrap; padding: .85rem 1.1rem; background: var(--surface-2);
+                  border-bottom: 1px solid var(--hairline); font-family: var(--sans); }
+  .day > header b { font-size: 1.05rem; font-weight: 800; letter-spacing: -.02em; }
+  .day > header span { font-family: var(--mono); font-size: .74rem; color: var(--muted); }
+  .day > header em { font-style: normal; font-family: var(--sans); font-size: .72rem; font-weight: 700;
+                     letter-spacing: .07em; text-transform: uppercase; color: var(--forza); }
+  .meal { display: grid; grid-template-columns: 7.5rem 1fr auto; gap: .5rem 1rem;
+          padding: .7rem 1.1rem; border-bottom: 1px solid var(--hairline);
+          font-family: var(--sans); font-size: .88rem; align-items: baseline; }
+  .meal:last-child { border-bottom: none; }
+  .meal > b { font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .meal > div { color: var(--ink); line-height: 1.5; }
+  .meal > div small { display: block; color: var(--muted); font-size: .82em; margin-top: .15rem; }
+  .meal > span { font-family: var(--mono); font-size: .78rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .meal.var { background: var(--forza-soft); }
+  .meal.var > b { color: var(--forza); }
+  @media (max-width: 34rem) {
+    .meal { grid-template-columns: 1fr auto; }
+    .meal > b { grid-column: 1 / -1; }
+  }
+
+  .tablewrap { overflow-x: auto; margin: 1rem 0 2rem; border: 1px solid var(--hairline);
+               border-radius: 8px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: .88rem; min-width: 30rem; }
+  caption { text-align: left; padding: .95rem 1.1rem; border-bottom: 1px solid var(--hairline);
+            background: var(--surface-2); font-weight: 700; font-size: .98rem; letter-spacing: -.01em;
+            display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  caption span { font-family: var(--mono); font-size: .74rem; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+  th { text-align: left; font-size: .68rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+       color: var(--muted); padding: .7rem 1.1rem .5rem; border-bottom: 1px solid var(--hairline); white-space: nowrap; }
+  td { padding: .68rem 1.1rem; border-bottom: 1px solid var(--hairline); vertical-align: top; color: var(--ink-2); }
+  tr:last-child td { border-bottom: none; }
+  td.food { color: var(--ink); font-weight: 600; }
+  td.num { font-family: var(--mono); font-size: .82rem; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink); }
+  tfoot td { background: var(--surface-2); font-weight: 700; color: var(--ink); }
+
+  ol.rules { list-style: none; counter-reset: r; padding: 0; margin: 1.6rem 0; max-width: 40rem; }
+  ol.rules li { counter-increment: r; position: relative; padding: .8rem 0 .8rem 3rem;
+                border-top: 1px solid var(--hairline); font-size: 1rem; }
+  ol.rules li:last-child { border-bottom: 1px solid var(--hairline); }
+  ol.rules li::before { content: counter(r); position: absolute; left: 0; top: .85rem; font-family: var(--mono);
+    font-size: .78rem; font-weight: 600; color: var(--forza); width: 1.7rem; height: 1.7rem;
+    border: 1px solid var(--forza); border-radius: 50%; display: grid; place-items: center; }
+
+  ul.never { list-style: none; padding: 0; margin: 1.4rem 0; max-width: 40rem; }
+  ul.never li { padding: .55rem 0 .55rem 1.9rem; border-bottom: 1px solid var(--hairline);
+                position: relative; font-size: .95rem; color: var(--ink-2); }
+  ul.never li::before { content: "\00d7"; position: absolute; left: .35rem; top: .5rem;
+                        font-family: var(--mono); color: var(--forza); font-size: 1rem; font-weight: 700; }
+  ul.never li b { color: var(--ink); }
+
+  .shop { display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline);
+          border-radius: 8px; overflow: hidden; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); margin: 1.8rem 0; }
+  .shop div { background: var(--surface); padding: 1.05rem 1.15rem; }
+  .shop h4 { font-family: var(--sans); font-size: .78rem; font-weight: 700; margin: 0 0 .5rem;
+             letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+  .shop ul { margin: 0; padding-left: 1.1rem; font-size: .88rem; line-height: 1.6; color: var(--ink-2); }
+
+  .close { margin-top: 4rem; padding: 2.25rem 0 0; border-top: 2px solid var(--ink); }
+  .footnote { font-size: .8rem; color: var(--muted); margin-top: 2.5rem; line-height: 1.55; max-width: 40rem; }
+  .note { background: var(--corsa-soft); border-radius: 8px; padding: 1rem 1.15rem; margin: 1.6rem 0;
+          font-size: .93rem; line-height: 1.5; max-width: 40rem; }
+  .note b { color: var(--corsa); }
+
+
+  /* ── Stampa: tutto su un foglio A4 ──────────────────────────────────
+     A schermo il documento resta esteso. In stampa va in scena solo
+     .sheet, che riorganizza le stesse informazioni: i tre pasti fissi
+     scritti una volta invece che sette, e pranzo/cena in tabella. */
+  .sheet { display: none; }
+
+  @media print {
+    @page { size: A4 portrait; margin: 9mm 10mm; }
+    html, body { background: #fff; }
+    body {
+      font-family: var(--sans); font-size: 8pt; line-height: 1.28; color: #000;
+      padding: 0; margin: 0;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .wrap > *:not(.sheet) { display: none !important; }
+    .sheet { display: block; max-width: none; }
+
+    .sheet header { border-bottom: 1.2pt solid #000; padding-bottom: 1.5mm; margin-bottom: 3mm;
+                    display: flex; align-items: baseline; justify-content: space-between; gap: 4mm; flex-wrap: wrap; }
+    .sheet h1 { font-size: 15pt; font-weight: 800; letter-spacing: -.03em; margin: 0; }
+    .sheet header p { font-size: 8.5pt; margin: 0; color: #333; }
+
+    .lab { font-size: 6.6pt; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+           color: #444; margin: 0 0 1.2mm; }
+
+    .fixed { border: .6pt solid #000; padding: 2mm 2.5mm; margin-bottom: 3.5mm; background: #f4f4f4; }
+    .fixed table { width: 100%; border-collapse: collapse; }
+    .fixed th { text-align: left; width: 26mm; font-size: 7.4pt; font-weight: 700;
+                padding: .8mm 2mm .8mm 0; vertical-align: top; white-space: nowrap; }
+    .fixed td { font-size: 7.8pt; padding: .8mm 0; vertical-align: top; }
+    .fixed td.k { width: 11mm; text-align: right; font-family: var(--mono); font-size: 7.4pt; color: #444; }
+
+    table.week { width: 100%; border-collapse: collapse; margin-bottom: 3.5mm; }
+    table.week thead th { font-size: 6.6pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+                          color: #444; text-align: left; padding: 0 2mm 1mm 0; border-bottom: .8pt solid #000; }
+    table.week tbody th { text-align: left; font-size: 8.5pt; font-weight: 800; width: 11mm;
+                          padding: 1.4mm 2mm 1.4mm 0; vertical-align: top; }
+    table.week td { font-size: 7.8pt; padding: 1.4mm 2mm 1.4mm 0; vertical-align: top;
+                    border-bottom: .4pt solid #ccc; }
+    table.week tbody th { border-bottom: .4pt solid #ccc; }
+    table.week td i { display: block; font-style: normal; font-size: 6.9pt; color: #555; margin-top: .3mm; }
+    table.week td.k { width: 12mm; text-align: right; font-family: var(--mono); font-size: 7.4pt; color: #444; }
+    table.week tr { break-inside: avoid; }
+
+    .rules2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm 5mm; }
+    .rules2 .wide { grid-column: 1 / -1; }
+    .rules2 ul { margin: 0; padding-left: 3.6mm; }
+    .rules2 li { font-size: 7.5pt; line-height: 1.35; margin-bottom: .8mm; }
+
+    .foot { font-size: 6.4pt; color: #666; margin: 3mm 0 0; padding-top: 1.5mm; border-top: .4pt solid #ccc; }
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  :focus-visible { outline: 2px solid var(--forza); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="meta"><span>Scheda alimentare</span><span>2 settembre 2026</span><span>Documento a parte, non entra nell'app</span></p>
+    <h1>Le Calorie Mancanti</h1>
+    <p class="print-only">Scheda alimentare · ~3300 kcal e ~170 g di proteine al giorno · colazione e pancake sono uguali tutti i giorni, la merenda è pane e formaggio fresco</p>
+    <p class="standfirst">
+      Sette giorni, cinque pasti, tutte le grammature. Costruita sui piatti che già cucini:
+      non c'è una sola ricetta da imparare.
+    </p>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <section class="col">
+    <p class="eyebrow">Perché</p>
+    <h2>Mangi 1830 calorie e te ne servono 3200</h2>
+    <p>
+      Contata alimento per alimento, farina di riso della tua confezione compresa. È lo stesso
+      numero del registro di maggio: non erano quattro giorni sfortunati, <em class="lede">è la
+      tua alimentazione normale</em>. Ed è la spiegazione più semplice del rematore fermo a
+      13 kg per quattro sessioni.
+    </p>
+    <div class="gap">
+      <div class="gapbar">
+        <p class="lab"><span>Oggi</span><b>~1830 kcal</b></p>
+        <div class="track"><i style="width:57%;background:var(--hairline-strong)"></i></div>
+      </div>
+      <div class="gapbar">
+        <p class="lab"><span>La scheda</span><b>~3300 kcal</b></p>
+        <div class="track"><i style="width:100%;background:var(--forza)"></i></div>
+      </div>
+    </div>
+    <p>
+      <b>Non mangi male, mangi poco.</b> Il pancake che ti sei inventato è roba da manuale, le
+      verdure ci sono, la carne a cena c'è. Il buco è nei carboidrati e soprattutto nei grassi:
+      nella tua giornata, a parte l'olio del condimento, non c'era <em class="lede">nessuna</em>
+      fonte di grassi. Per questo qui entrano frutta secca, uova intere e olio.
+    </p>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <section>
+    <div class="col">
+      <p class="eyebrow">La scheda</p>
+      <h2>I sette giorni</h2>
+      <p>
+        <b>Colazione e pancake sono uguali tutti i giorni</b> — un piano che cambia
+        anche quelli è un piano che non si segue. Cambiano <em class="lede">pranzo e cena</em>,
+        evidenziati in arancione.
+      </p>
+    </div>
+
+    <div class="days">
+
+      <article class="day">
+        <header><b>Lunedì</b><span>3297 kcal · 175 g proteine</span></header>
+        <div class="meal"><b>Colazione</b><div>90 g fiocchi d'avena · 250 ml latte intero · 30 g mandorle · 10 g miele<small><b>oppure</b> Piadina con fior di latte e pomodoro — 1 piadina · 100 g fior di latte · pomodoro con 1 cucchiaio d'olio · un caffè senza latte. Il martedì meglio l'avena: la sera c'è la bufala</small></div><span>710</span></div>
+        <div class="meal"><b>Merenda mattina</b><div>Pancake: 90 g farina di riso · 150 g albume · 75 g yogurt greco · 1 uovo intero · 15 g miele</div><span>565</span></div>
+        <div class="meal var"><b>Pranzo</b><div>Pasta al ragù<small>100 g pasta · 150 g macinato · passata · 2 cucchiai olio · 40 g pane · verdure</small><small><b>oppure</b> Carbonara — 100 g pasta · 2 uova · 60 g pancetta · 40 g pane · verdure (niente olio in più)</small></div><span>955</span></div>
+        <div class="meal"><b>Merenda</b><div>80 g pane · 80 g fior di latte</div><span>422</span></div>
+        <div class="meal var"><b>Cena</b><div>Pollo<small>180 g · 60 g pane (oppure 250 g di patate lesse) · verdure · 2 cucchiai olio</small></div><span>645</span></div>
+      </article>
+
+      <article class="day">
+        <header><b>Martedì</b><span>3330 kcal · 154 g proteine</span><em>Bufala</em></header>
+        <div class="meal"><b>Colazione</b><div>Come lunedì</div><span>710</span></div>
+        <div class="meal"><b>Merenda mattina</b><div>Pancake</div><span>565</span></div>
+        <div class="meal var"><b>Pranzo</b><div>Pasta al pomodoro con 3 uova<small>100 g pasta · passata · 2 cucchiai olio · 3 uova · 40 g pane · verdure</small><small><b>oppure</b> Pasta con zucchine o melanzane e 3 uova — stesse quantità</small></div><span>935</span></div>
+        <div class="meal"><b>Merenda</b><div>80 g pane · 70 g affettato · 10 g mandorle<small>Il salume della settimana: stasera c'è la bufala, così il formaggio non si ripete</small></div><span>385</span></div>
+        <div class="meal var"><b>Cena</b><div>Mozzarella di bufala<small>125 g (una mozzarella) · 60 g pane · insalata e pomodorini · 2 cucchiai olio</small></div><span>735</span></div>
+      </article>
+
+      <article class="day">
+        <header><b>Mercoledì</b><span>3295 kcal · 164 g proteine</span></header>
+        <div class="meal"><b>Colazione</b><div>Come lunedì</div><span>710</span></div>
+        <div class="meal"><b>Merenda mattina</b><div>Pancake</div><span>565</span></div>
+        <div class="meal var"><b>Pranzo</b><div>Pasta al pesto con 3 uova<small>100 g pasta · 30 g pesto · 3 uova · 1 cucchiaio olio · 40 g pane · verdure</small><small><b>oppure</b> Pasta al ragù — come lunedì</small></div><span>935</span></div>
+        <div class="meal"><b>Merenda</b><div>1 piadina piccola (65 g) · 70 g stracchino</div><span>425</span></div>
+        <div class="meal var"><b>Cena</b><div>Tacchino<small>180 g · 60 g pane (oppure 250 g di patate lesse) · verdure · 2 cucchiai olio</small></div><span>645</span></div>
+      </article>
+
+      <article class="day">
+        <header><b>Giovedì</b><span>3217 kcal · 159 g proteine</span><em>Legumi</em></header>
+        <div class="meal"><b>Colazione</b><div>Come lunedì</div><span>710</span></div>
+        <div class="meal"><b>Merenda mattina</b><div>Pancake</div><span>565</span></div>
+        <div class="meal var"><b>Pranzo</b><div>Pasta e fagioli<small>80 g pasta · 250 g fagioli cotti (1 scatola) · 2 cucchiai olio · 40 g pane · verdure</small><small><b>oppure</b> Riso e lenticchie — 80 g riso · 250 g lenticchie cotte · 2 cucchiai olio</small></div><span>875</span></div>
+        <div class="meal"><b>Merenda</b><div>80 g pane · 80 g fior di latte</div><span>422</span></div>
+        <div class="meal var"><b>Cena</b><div>Pesce<small>200 g · 60 g pane (oppure 250 g di patate lesse) · verdure · 2 cucchiai olio — vedi la nota sulla rotazione</small></div><span>645</span></div>
+      </article>
+
+      <article class="day">
+        <header><b>Venerdì</b><span>3260 kcal · 157 g proteine</span><em>Legumi</em></header>
+        <div class="meal"><b>Colazione</b><div>Come lunedì</div><span>710</span></div>
+        <div class="meal"><b>Merenda mattina</b><div>Pancake</div><span>565</span></div>
+        <div class="meal var"><b>Pranzo</b><div>Riso e lenticchie<small>80 g riso · 250 g lenticchie cotte (1 scatola) · 2 cucchiai olio · 40 g pane · verdure</small><small><b>oppure</b> Pasta o riso con la zucca e 3 uova — 100 g pasta · 200 g zucca · 2 cucchiai olio · 3 uova</small></div><span>915</span></div>
+        <div class="meal"><b>Merenda</b><div>1 piadina piccola (65 g) · 70 g stracchino</div><span>425</span></div>
+        <div class="meal var"><b>Cena</b><div>Manzo<small>180 g · 60 g pane (oppure 250 g di patate lesse) · verdure · 2 cucchiai olio</small></div><span>645</span></div>
+      </article>
+
+      <article class="day">
+        <header><b>Sabato</b><span>3520 kcal · 161 g proteine</span><em>Pizza</em></header>
+        <div class="meal"><b>Colazione</b><div>Come lunedì</div><span>710</span></div>
+        <div class="meal"><b>Merenda mattina</b><div>Pancake</div><span>565</span></div>
+        <div class="meal var"><b>Pranzo</b><div>Insalata di riso col tonno<small>100 g riso · 160 g tonno sgocciolato (2 scatolette) · 2 cucchiai olio · verdure e mais · 40 g pane</small><small><b>oppure</b> Aglio, olio e peperoncino con 3 uova — 90 g pasta · 3 cucchiai olio · 3 uova · 40 g pane · verdure</small></div><span>950</span></div>
+        <div class="meal"><b>Merenda</b><div>80 g pane · 70 g stracchino</div><span>430</span></div>
+        <div class="meal var"><b>Cena</b><div>Pizza<small>Una pizza intera. Una margherita va benissimo: il crudo sopra tienilo come eccezione, è un salume</small></div><span>880</span></div>
+      </article>
+
+      <article class="day">
+        <header><b>Domenica</b><span>3360 kcal · 172 g proteine</span></header>
+        <div class="meal"><b>Colazione</b><div>Come lunedì</div><span>710</span></div>
+        <div class="meal"><b>Merenda mattina</b><div>Pancake</div><span>565</span></div>
+        <div class="meal var"><b>Pranzo</b><div>Pasta al forno<small>100 g pasta · 100 g mozzarella · 2 uova sode · passata · 1 cucchiaio olio · 40 g pane · verdure</small><small><b>oppure</b> Carbonara — come lunedì</small></div><span>1010</span></div>
+        <div class="meal"><b>Merenda</b><div>80 g pane · 70 g stracchino</div><span>430</span></div>
+        <div class="meal var"><b>Cena</b><div>Maiale o carne a scelta<small>180 g · 60 g pane (oppure 250 g di patate lesse) · verdure · 2 cucchiai olio</small></div><span>645</span></div>
+      </article>
+
+    </div>
+
+    <div class="col">
+      <div class="note">
+        <b>Il giorno in ufficio</b> sostituisci pranzo e merende con le regole del ristorante,
+        più avanti. Colazione e cena restano quelle: quel giorno la scheda cambia solo al
+        centro. Non serve spostarlo in un giorno preciso della settimana.
+      </div>
+      <p>
+        Le proteine escono a ~170 g contro un minimo di 155. <em class="lede">Non è uno
+        spreco</em>: saziano, aiutano il recupero, e il surplus non fa danni. Vengono
+        naturalmente dal fatto che mangi molto albume e molta carne.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <section class="col">
+    <p class="eyebrow">Contorni e sostituzioni</p>
+    <h2>Le patate non sono un contorno</h2>
+    <p>
+      È la correzione più importante di questa revisione. <em class="lede">Le patate sono
+      carboidrati, non verdure.</em> Cento grammi di patate lesse fanno 85 calorie, le
+      zucchine ne fanno 17. Se le metti nella voce «verdure a volontà» ti ritrovi 250 calorie
+      in più senza saperlo — e in un piano che punta a un chilo al mese, 250 calorie al giorno
+      sono la differenza fra crescere bene e ingrassare.
+    </p>
+
+    <p class="pull">
+      Le patate sostituiscono il pane, non le verdure.<br>
+      250 g di patate lesse ≈ 60 g di pane.
+    </p>
+
+    <p>
+      Quindi la sera in cui fai le patate, <b>salti il pane</b>. È comodo, perché con la carne
+      stanno meglio del pane comunque.
+    </p>
+    <p>
+      <b>Insalata, rucola e pomodorini</b> invece sono verdure vere: 20 calorie all'etto,
+      mangiane quante ne vuoi. Ricordati solo il cucchiaio d'olio sopra, che è già contato
+      nel piano ed è lì apposta.
+    </p>
+
+    <h3>Le uova come secondo a cena</h3>
+    <p>
+      Vanno benissimo, non le avevo messe solo perché ne usi già a colazione e a pranzo.
+      L'equivalenza: una <b>frittata di 4 uova</b> fa 280 kcal e 25 g di proteine, contro
+      250 kcal e 40 g di 180 g di pollo. Stesse calorie, un po' meno proteine.
+    </p>
+    <p>
+      Nel tuo caso non è un problema: sei a circa 170 g di proteine al giorno contro un minimo
+      di 155, quindi una sera sotto di dieci grammi va bene. <b>Puoi sostituire la carne con la frittata in
+      qualsiasi giorno</b>, tenendo però d'occhio il totale delle uova: fra pancake e pranzi
+      ne mangi già una quindicina a settimana, cioè poco più di due al giorno. Per una persona
+      sana e con il colesterolo a posto le linee guida attuali non pongono problemi, ma se hai
+      valori alterati dimmelo e le riduco.
+    </p>
+
+    <h3>La mozzarella di bufala del martedì</h3>
+    <p>
+      Ha senso eccome, ed è meglio di quanto pensassi: la bufala fa <b>288 kcal per 100 g</b>
+      contro le 253 del fior di latte. Più grassa, e per il tuo obiettivo è un vantaggio.
+    </p>
+    <p>
+      L'ho messa <b>martedì sera come secondo</b>: 125 g, cioè una mozzarella intera, con pane,
+      insalata e pomodorini e due cucchiai d'olio. Fa 735 calorie. Per questo il martedì a
+      pranzo non c'è mozzarella: due volte nello stesso giorno sarebbero troppe.
+    </p>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <section>
+    <div class="col">
+      <p class="eyebrow">Colazione, pancake e merenda</p>
+      <h2>I pasti che non devi ricordare</h2>
+      <p>
+        Sono uguali sette giorni su sette. Impararli una volta significa non doverci più
+        pensare, ed è la ragione per cui il piano regge anche nelle settimane storte.
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <caption>Colazione <span>710 kcal · 26 g proteine</span></caption>
+        <thead><tr><th>Alimento</th><th>Quantità</th><th>kcal</th><th>Proteine</th></tr></thead>
+        <tbody>
+          <tr><td class="food">Fiocchi d'avena</td><td class="num">90 g</td><td class="num">340</td><td class="num">12 g</td></tr>
+          <tr><td class="food">Latte intero</td><td class="num">250 ml</td><td class="num">160</td><td class="num">8 g</td></tr>
+          <tr><td class="food">Mandorle o noci</td><td class="num">30 g</td><td class="num">180</td><td class="num">6 g</td></tr>
+          <tr><td class="food">Miele</td><td class="num">10 g</td><td class="num">30</td><td class="num">—</td></tr>
+        </tbody>
+        <tfoot><tr><td>Totale</td><td class="num">—</td><td class="num">710</td><td class="num">26 g</td></tr></tfoot>
+      </table>
+    </div>
+
+    <div class="col">
+      <div class="note">
+        <b>Le proteine in polvere sono facoltative.</b> La tua giornata arriva già a circa
+        170 g di proteine senza, contro un minimo di 155. Se un giorno le compri, aggiungi la dose
+        che dà 24 g di proteine e riporta l'avena a 80 g e le mandorle a 20 g: le calorie restano
+        le stesse. Non aspettarle per iniziare.
+      </div>
+      <p>
+        Si prepara <b>la sera prima</b>: avena e latte in un barattolo in frigo. La
+        mattina aggiungi mandorle e miele. Trenta secondi. <b>Latte intero, non scremato</b>:
+        sono 60 calorie in più e zero differenza di gusto.
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <caption>Merenda della mattina, il pancake <span>565 kcal · 36 g proteine</span></caption>
+        <thead><tr><th>Alimento</th><th>Adesso</th><th>Nuovo</th><th>kcal</th><th>Proteine</th></tr></thead>
+        <tbody>
+          <tr><td class="food">Farina di riso</td><td class="num">50 g</td><td class="num">90 g</td><td class="num">323</td><td class="num">6 g</td></tr>
+          <tr><td class="food">Albume</td><td class="num">180 g</td><td class="num">150 g</td><td class="num">78</td><td class="num">16 g</td></tr>
+          <tr><td class="food">Yogurt greco</td><td class="num">75 g</td><td class="num">75 g</td><td class="num">49</td><td class="num">8 g</td></tr>
+          <tr><td class="food">Uovo intero</td><td class="num">—</td><td class="num">1</td><td class="num">70</td><td class="num">6 g</td></tr>
+          <tr><td class="food">Miele sopra</td><td class="num">—</td><td class="num">15 g</td><td class="num">45</td><td class="num">—</td></tr>
+        </tbody>
+        <tfoot><tr><td>Totale</td><td class="num">325</td><td class="num">—</td><td class="num">565</td><td class="num">36 g</td></tr></tfoot>
+      </table>
+    </div>
+
+    <div class="col">
+      <p>
+        Il tuo pancake resta. L'uovo intero lega meglio l'impasto e porta i grassi che
+        mancavano. Sono gli unici 75 g di yogurt rimasti in giornata, come volevi.
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <caption>Merenda del pomeriggio, prima di allenarti <span>~425 kcal · ~20 g proteine</span></caption>
+        <thead><tr><th>Alimento</th><th>Quantità</th><th>kcal</th><th>Proteine</th></tr></thead>
+        <tbody>
+          <tr><td class="food">Pane, oppure una piadina piccola</td><td class="num">80 g / 65 g</td><td class="num">220</td><td class="num">7 g</td></tr>
+          <tr><td class="food">Fior di latte, oppure stracchino</td><td class="num">80 g / 70 g</td><td class="num">~205</td><td class="num">~14 g</td></tr>
+        </tbody>
+        <tfoot><tr><td>Totale</td><td class="num">—</td><td class="num">~425</td><td class="num">~20 g</td></tr></tfoot>
+      </table>
+    </div>
+
+    <div class="col">
+      <h3>Pane e formaggio fresco, niente da preparare</h3>
+      <p>
+        Questa merenda è cambiata due volte, e vale la pena sapere perché. La prima versione
+        aveva <b>70 g di affettato tutti i giorni</b>: circa 490 grammi di salumi a settimana,
+        contro i <b>50 g occasionali</b> delle linee guida italiane. La seconda usava la carne
+        avanzata dalla cena, ma chiedeva di cucinarne di più la sera prima, e la carne fredda
+        nel panino non ti andava.
+      </p>
+      <p>
+        Adesso è <em class="lede">pane o piadina con un formaggio fresco</em>: fior di latte o
+        stracchino. Zero preparazione. Le proteine scendono a circa 20 g invece di 32, e va bene
+        così: la tua giornata ne ha già circa 165 g contro un minimo di 155. Alla merenda chiedo
+        soprattutto i carboidrati per l'allenamento delle 19.
+      </p>
+      <p>
+        <b>Il salume resta una volta a settimana, il martedì.</b> Prosciutto, bresaola, speck,
+        fesa di tacchino e pancetta sono carni lavorate: l'OMS le classifica fra i cancerogeni
+        certi, con un aumento stimato del rischio di tumore al colon del 18% ogni 50 g al giorno.
+        Il gruppo dice quanto è solida la prova, non quanto è grande il rischio, e il 18% è un
+        aumento relativo su un rischio di partenza basso — ma si evita senza fatica. Sta al
+        martedì perché quella sera c'è la bufala: così il formaggio non si ripete due volte.
+      </p>
+
+      <h3>La merenda, giorno per giorno</h3>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <caption>Si alternano pane e piadina <span>nessuna richiede di cucinare</span></caption>
+        <thead><tr><th>Giorno</th><th>Merenda</th></tr></thead>
+        <tbody>
+          <tr><td class="food">Lunedì</td><td>80 g pane · 80 g fior di latte</td></tr>
+          <tr><td class="food">Martedì</td><td>80 g pane · 70 g affettato · 10 g mandorle — il salume della settimana</td></tr>
+          <tr><td class="food">Mercoledì</td><td>1 piadina piccola · 70 g stracchino</td></tr>
+          <tr><td class="food">Giovedì</td><td>80 g pane · 80 g fior di latte</td></tr>
+          <tr><td class="food">Venerdì</td><td>1 piadina piccola · 70 g stracchino</td></tr>
+          <tr><td class="food">Sabato</td><td>80 g pane · 70 g stracchino</td></tr>
+          <tr><td class="food">Domenica</td><td>80 g pane · 70 g stracchino</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <p>
+        Falla <em class="lede">un'ora e mezza prima</em> della seduta delle 19. Era il pasto più
+        vuoto della tua giornata (100 calorie di yogurt) ed è compatibile con i dips che ti
+        crollavano da 12 a 5 alla terza serie: arrivavi senza niente da bruciare.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <section>
+    <div class="col">
+      <p class="eyebrow">Varianti</p>
+      <h2>Come cambiare la merenda del pomeriggio</h2>
+      <p>
+        Il pane non è il punto: <em class="lede">i carboidrati lo sono</em>. Quella merenda è
+        il tuo pre-allenamento e deve farti arrivare alle 19 con qualcosa da bruciare. Puoi
+        sostituire tutto, purché resti il ruolo — un pezzo di carboidrati, un pezzo di
+        proteine, e i 10 g di frutta secca che ci sono per i grassi.
+      </p>
+      <p>Ogni riga di queste due tabelle vale quanto l'altra. Prendine una per colonna.</p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <caption>Al posto degli 80 g di pane <span>tutte ≈ 215 kcal</span></caption>
+        <thead><tr><th>Alternativa</th><th>Quantità</th><th>Dove funziona</th></tr></thead>
+        <tbody>
+          <tr><td class="food">Pane</td><td class="num">80 g</td><td>Casa. È il riferimento.</td></tr>
+          <tr><td class="food">Gallette di riso</td><td class="num">55 g (circa 7)</td><td>Casa e ufficio: stanno in borsa e non si sbriciolano.</td></tr>
+          <tr><td class="food">Crackers</td><td class="num">50 g</td><td>Ovunque, si comprano dappertutto.</td></tr>
+          <tr><td class="food">Piadina</td><td class="num">65 g (mezza grande)</td><td>Casa. La variante più saziante.</td></tr>
+          <tr><td class="food">Fiocchi d'avena</td><td class="num">55 g</td><td>Casa, dentro un frullato o col latte.</td></tr>
+          <tr><td class="food">Patate lesse</td><td class="num">250 g</td><td>Casa, se ne avanzano dalla cena.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <caption>Al posto del formaggio <span>tutte fra 12 e 24 g di proteine</span></caption>
+        <thead><tr><th>Alternativa</th><th>Quantità</th><th>kcal</th><th>Proteine</th></tr></thead>
+        <tbody>
+          <tr><td class="food">Fior di latte</td><td class="num">80 g</td><td class="num">202</td><td class="num">15 g</td></tr>
+          <tr><td class="food">Stracchino</td><td class="num">70 g</td><td class="num">210</td><td class="num">13 g</td></tr>
+          <tr><td class="food">Mozzarella di bufala</td><td class="num">70 g</td><td class="num">202</td><td class="num">12 g</td></tr>
+          <tr><td class="food">Barretta proteica</td><td class="num">1</td><td class="num">200</td><td class="num">20 g</td></tr>
+          <tr><td class="food">Proteine in polvere, se le hai</td><td class="num">1 misurino</td><td class="num">120</td><td class="num">24 g</td></tr>
+          <tr><td class="food">Affettato — una volta a settimana</td><td class="num">70 g</td><td class="num">105</td><td class="num">22 g</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <p>
+        Le ultime tre righe portano più calorie delle 385 previste: se le usi spesso, togli
+        la frutta secca di quella merenda e sei di nuovo in linea.
+      </p>
+
+      <h3>Quattro già pronte</h3>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <caption>Combinazioni collaudate</caption>
+        <thead><tr><th>Dove</th><th>Cosa</th><th>Totale</th></tr></thead>
+        <tbody>
+          <tr><td class="food">Casa</td><td><b>Frullato d'avena</b> — 250 ml latte intero · 30 g fiocchi d'avena · 1 misurino di proteine · 10 g miele, tutto nel frullatore</td><td class="num">425 · 34 g P</td></tr>
+          <tr><td class="food">Casa</td><td><b>Piadina e stracchino</b> — 1 piadina piccola (65 g) · 70 g stracchino</td><td class="num">425 · 18 g P</td></tr>
+          <tr><td class="food">Ovunque</td><td><b>Gallette e fior di latte</b> — 55 g gallette di riso · 80 g fior di latte. Stanno in borsa senza sbriciolarsi</td><td class="num">415 · 19 g P</td></tr>
+          <tr><td class="food">Ufficio</td><td><b>Shaker e mandorle</b> — la polvere in un contenitore, latte o acqua sul posto · 55 g gallette · 25 g mandorle</td><td class="num">480 · 29 g P</td></tr>
+          <tr><td class="food">Ufficio</td><td><b>Barretta e frutta secca</b> — 1 barretta proteica · 30 g mandorle. Zero preparazione, si compra ovunque</td><td class="num">380 · 26 g P</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <div class="note">
+        <b>Il frullato è la migliore delle cinque</b>, e non per i numeri: alle sei di sera,
+        dopo una giornata di lavoro, bere trenta secondi è l'unica versione che farai anche
+        quando non ne hai voglia. Le calorie liquide passano dove quelle da masticare si
+        fermano.
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <section class="col">
+    <p class="eyebrow">Due note sui piatti</p>
+    <h2>Il ragù e il pesce</h2>
+
+    <div class="note">
+      <b>Il ragù fallo con l'hamburger, come dicevi tu.</b> 150 g di macinato sciolti nel sugo
+      sono 30 g di proteine che non si vedono e non cambiano il sapore del piatto. È la mossa
+      più efficiente di tutto il pranzo: il ragù pronto del supermercato ne ha un quinto.
+    </div>
+
+    <h3>Il pesce del giovedì va ruotato, e c'è un motivo serio</h3>
+    <p>
+      Mangi il pesce spada, quindi il giovedì non è nemmeno una novità. Ma lo spada è uno dei
+      <em class="lede">grandi predatori</em> e accumula metilmercurio lungo la catena
+      alimentare. Le autorità sanitarie europee raccomandano di non superare <b>una porzione
+      a settimana</b> per queste specie — spada, tonno in trancio, squalo, luccio — e di
+      variare il pesce.
+    </p>
+    <p>
+      Mangiandolo tutti i giovedì staresti sul limite cinquantadue settimane l'anno. Non è un
+      rischio acuto, ma è un accumulo inutile quando basta alternare: <b>spada una volta ogni
+      due o tre settimane</b>, le altre salmone, merluzzo, orata, branzino o sgombro. Sono
+      tutti a mercurio basso e si cucinano in padella allo stesso modo.
+    </p>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <section class="col">
+    <p class="eyebrow">Un giorno su sette</p>
+    <h2>Al ristorante si ordinano due piatti, non uno</h2>
+    <p>
+      Hai ragione sulle porzioni: <em class="lede">un primo da ristorante sono 60-70 g di pasta
+      secca</em>, due terzi della tua. Da solo ti lascia a metà strada. La soluzione non è
+      mangiare diverso, è ordinare di più.
+    </p>
+
+    <ol class="rules">
+      <li><b>Primo più secondo.</b> Pasta al ragù, poi pollo o carne alla griglia, contorno di
+          verdure con olio, più il pane del cestino. Circa <b>920 kcal e 50 g di proteine</b>.</li>
+      <li><b>Pizza intera.</b> Una margherita fa 800-900 calorie e va benissimo così: le
+          proteine della giornata le hai già. Il crudo sopra tienilo come eccezione.</li>
+      <li><b>Il pane del cestino conta.</b> Ottanta grammi sono 250 calorie che a casa dovresti
+          cercare altrove. Te le portano in tavola: usale.</li>
+      <li><b>La merenda portala da casa lo stesso.</b> Pane o gallette e un formaggio fresco
+          in un contenitore. È il pasto più facile da saltare quando sei fuori.</li>
+    </ol>
+
+    <h3>Da non fare mai</h3>
+    <ul class="never">
+      <li><b>Solo il primo.</b> È il singolo errore che trasforma la giornata in ufficio in una giornata da 1800.</li>
+      <li><b>Un panino al volo al posto del pranzo seduto.</b> Se hai il ristorante, usalo.</li>
+      <li><b>Saltare lo spuntino della mattina perché non hai il pancake.</b> Bastano le mandorle e un panino.</li>
+    </ul>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <section>
+    <div class="col">
+      <p class="eyebrow">La spesa</p>
+      <h2>Se queste cose ci sono, il piano regge da solo</h2>
+      <p>
+        I piani alimentari falliscono quasi sempre per un motivo banale: alle sette del mattino
+        non c'è niente da mettere nella scodella.
+      </p>
+    </div>
+
+    <div class="shop">
+      <div>
+        <h4>Le nuove</h4>
+        <ul>
+          <li>Fiocchi d'avena (1 kg dura 12 giorni)</li>
+          <li>Mandorle o noci</li>
+          <li>Miele</li>
+          <li>Fagioli e lenticchie in scatola</li>
+          <li>Stracchino e fior di latte, per le merende</li>
+          <li>Un affettato a settimana, per il martedì</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Da tenere alte</h4>
+        <ul>
+          <li>Latte <b>intero</b></li>
+          <li>Uova (~12 a settimana)</li>
+          <li>Pane (~500 g al giorno fra i pasti)</li>
+          <li>Olio extravergine</li>
+          <li>Tonno in scatola</li>
+          <li>Macinato di manzo o hamburger</li>
+          <li>Fior di latte o mozzarella</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Già in casa</h4>
+        <ul>
+          <li>Farina di riso</li>
+          <li>Albume</li>
+          <li>Yogurt greco</li>
+          <li>Proteine in polvere (facoltative)</li>
+          <li>Pasta, riso, pesto, passata</li>
+          <li>Carne, pesce, verdure di stagione</li>
+          <li>Patate, insalata, rucola, pomodorini</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <section class="col">
+    <p class="eyebrow">Il controllo</p>
+    <h2>Come sai se sta funzionando</h2>
+    <p>
+      Le 3200 sono una stima: il tuo fabbisogno vero potrebbe essere 2900 o 3500 e nessuna
+      formula lo azzecca. Ma non serve azzeccarlo, perché la bilancia te lo dice da sola.
+    </p>
+
+    <p class="pull">
+      Pesati una volta a settimana, sempre lo stesso giorno, la mattina appena sveglio.
+      Registralo nell'app, in Progressi → Corpo.
+    </p>
+
+    <p class="keep-print">Obiettivo: <em class="lede">da mezzo chilo a un chilo al mese</em>.</p>
+
+    <ol class="rules">
+      <li><b>Il peso non si muove per tre settimane?</b> Aggiungi 300 calorie: 30 g di mandorle
+          in più e un cucchiaio d'olio in più a cena.</li>
+      <li><b>Sali più di un chilo e mezzo al mese?</b> Troppo in fretta, stai mettendo grasso.
+          Togli le mandorle della merenda e un cucchiaio d'olio.</li>
+      <li><b>Sali fra mezzo chilo e un chilo?</b> Non toccare niente.</li>
+    </ol>
+
+    <p>
+      <b>Aspetta tre settimane prima di cambiare qualcosa.</b> Il peso oscilla di un chilo e
+      mezzo al giorno per acqua, sale e digestione: valutare su pochi giorni significa inseguire
+      rumore.
+    </p>
+
+    <div class="note">
+      <b>Le prime due settimane non avrai fame.</b> Chi mangia 1800 calorie da anni ha lo stomaco
+      adattato: all'inizio mangerai per disciplina, non per appetito. Passa in una decina di
+      giorni. Se la colazione ti sembra troppa, frullala e bevila: le calorie liquide passano
+      molto più facilmente di quelle da masticare.
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <section class="col close">
+    <p class="eyebrow">Da qui</p>
+    <h2>Due cose, trenta secondi ciascuna</h2>
+    <ol class="rules">
+      <li><b>Prepara la colazione la sera prima.</b> Avena e latte nel barattolo: è il pasto che vale di più.</li>
+      <li><b>Pesati domani mattina appena sveglio</b> e registralo nell'app. È il punto zero:
+          senza quello, fra tre settimane non sapremo se sta funzionando.</li>
+    </ol>
+    <p>
+      Poi si mangia e si aspetta tre settimane, senza toccare niente e senza pesarsi ogni giorno.
+    </p>
+
+    <p class="footnote">
+      Valori nutrizionali medi: variano fra marche e prodotti, e le stime sui tuoi pasti attuali
+      sono approssimate di qualche decina di calorie. Indicazioni per una persona sana e senza
+      patologie note, pensate per aumentare massa muscolare in accompagnamento a un programma di
+      allenamento. Non sostituiscono il parere di un medico o di un nutrizionista, che restano la
+      strada giusta in presenza di patologie, terapie in corso o valori ematici alterati.
+    </p>
+  </section>
+
+  <!-- ═══ Foglio unico A4: esiste solo in stampa ═══════════════════════ -->
+  <section class="sheet">
+    <header>
+      <h1>Le Calorie Mancanti</h1>
+      <p>Scheda alimentare · <b>~3300 kcal</b> e <b>~170 g di proteine</b> al giorno</p>
+    </header>
+
+    <div class="fixed">
+      <p class="lab">Tutti i giorni</p>
+      <table>
+        <tr>
+          <th>Colazione</th>
+          <td>90 g fiocchi d'avena · 250 ml latte <b>intero</b> · 30 g mandorle · 10 g miele <i style="font-style:normal;color:#555">— oppure piadina con 100 g di fior di latte e pomodoro con 1 cucchiaio d'olio, senza latte (non il martedì)</i></td>
+          <td class="k">710</td>
+        </tr>
+        <tr>
+          <th>Merenda mattina</th>
+          <td>Pancake: 90 g farina di riso · 150 g albume · 75 g yogurt greco · 1 uovo intero · 15 g miele</td>
+          <td class="k">565</td>
+        </tr>
+        <tr>
+          <th>Merenda 17-18</th>
+          <td>80 g pane · <b>80 g fior di latte</b> oppure <b>70 g stracchino</b> — 90 minuti prima di allenarti. <i style="font-style:normal;color:#555">Mer e Ven con la piadina piccola · Mar: 70 g di affettato, il salume della settimana</i></td>
+          <td class="k">~400</td>
+        </tr>
+      </table>
+    </div>
+
+    <p class="lab">Pranzo e cena</p>
+    <table class="week">
+      <thead>
+        <tr><th>Giorno</th><th>Pranzo</th><th>oppure</th><th>Cena</th><th class="k">kcal</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th>Lun</th>
+          <td><b>Pasta al ragù</b><i>100 g pasta · 150 g macinato · passata</i></td>
+          <td>Carbonara<i>100 g pasta · 2 uova · 60 g pancetta</i></td>
+          <td>Pollo 180 g</td><td class="k">3297</td>
+        </tr>
+        <tr>
+          <th>Mar</th>
+          <td><b>Pasta al pomodoro + 3 uova</b><i>100 g pasta · passata · 3 uova</i></td>
+          <td>Con zucchine o melanzane + 3 uova<i>stesse quantità</i></td>
+          <td><b>Mozzarella di bufala</b> 125 g</td><td class="k">3330</td>
+        </tr>
+        <tr>
+          <th>Mer</th>
+          <td><b>Pasta al pesto + 3 uova</b><i>100 g pasta · 30 g pesto · 3 uova</i></td>
+          <td>Pasta al ragù<i>come lunedì</i></td>
+          <td>Tacchino 180 g</td><td class="k">3295</td>
+        </tr>
+        <tr>
+          <th>Gio</th>
+          <td><b>Pasta e fagioli</b><i>80 g pasta · 250 g fagioli cotti (1 scatola)</i></td>
+          <td>Riso e lenticchie<i>80 g riso · 250 g lenticchie</i></td>
+          <td>Pesce 200 g</td><td class="k">3217</td>
+        </tr>
+        <tr>
+          <th>Ven</th>
+          <td><b>Riso e lenticchie</b><i>80 g riso · 250 g lenticchie cotte</i></td>
+          <td>Pasta o riso con la zucca + 3 uova<i>100 g · 200 g zucca · 3 uova</i></td>
+          <td>Manzo 180 g</td><td class="k">3260</td>
+        </tr>
+        <tr>
+          <th>Sab</th>
+          <td><b>Insalata di riso col tonno</b><i>100 g riso · 160 g tonno (2 scatolette) · verdure e mais</i></td>
+          <td>Aglio, olio e peperoncino + 3 uova<i>90 g pasta · 3 cucchiai olio · 3 uova</i></td>
+          <td><b>Pizza</b> — una margherita va bene</td><td class="k">3520</td>
+        </tr>
+        <tr>
+          <th>Dom</th>
+          <td><b>Pasta al forno</b><i>100 g pasta · 100 g mozzarella · 2 uova sode · passata</i></td>
+          <td>Carbonara<i>come lunedì</i></td>
+          <td>Maiale o carne 180 g</td><td class="k">3360</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="rules2">
+      <div>
+        <p class="lab">Sempre, in ogni pasto</p>
+        <ul>
+          <li><b>Pranzo:</b> + 40 g pane + verdure + 2 cucchiai olio</li>
+          <li><b>Cena:</b> + 60 g pane + verdure + 2 cucchiai olio</li>
+          <li><b>Le patate sostituiscono il pane, non le verdure.</b> 250 g di patate lesse ≈ 60 g di pane: quella sera salti il pane</li>
+          <li>Insalata, rucola e pomodorini: a volontà</li>
+          <li>Una <b>frittata di 4 uova</b> sostituisce la carne in qualunque cena</li>
+        </ul>
+      </div>
+      <div>
+        <p class="lab">Da ricordare</p>
+        <ul>
+          <li><b>Pesce spada</b> al massimo una volta ogni 2-3 settimane: è ad alto mercurio. Le altre volte salmone, merluzzo, orata, branzino</li>
+          <li><b>Salumi al massimo una volta a settimana:</b> sono carni lavorate. Alla merenda solo il martedì</li>
+          <li><b>Il ragù fallo con l'hamburger:</b> 150 g di macinato sono 30 g di proteine che non si vedono</li>
+          <li><b>Al ristorante ordina primo + secondo + pane.</b> Mai solo il primo: sono 500 kcal</li>
+          <li>Colazione pronta <b>la sera prima</b> in un barattolo in frigo</li>
+          <li><b>Merenda, scambi:</b> 80 g pane = 55 g gallette = 50 g crackers = 65 g piadina = 55 g avena · il formaggio = una barretta proteica o 70 g di bufala</li>
+          <li><b>La pizza del sabato non è uno sgarro:</b> 880 kcal contro le 645 di una cena normale, una volta a settimana. Ti aiuta, non ti ostacola</li>
+        </ul>
+      </div>
+      <div class="wide">
+        <p class="lab">Il controllo</p>
+        <ul>
+          <li><b>Pesati una volta a settimana</b>, stesso giorno, la mattina appena sveglio, e registralo nell'app. Obiettivo: <b>+0,5-1 kg al mese</b></li>
+          <li>Fermo per <b>3 settimane</b> → aggiungi 300 kcal (30 g di mandorle e un cucchiaio d'olio in più) · Più di 1,5 kg al mese → togli le mandorle della merenda</li>
+          <li>Non valutare prima di tre settimane: il peso oscilla di 1,5 kg al giorno per acqua e digestione</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="foot">
+      Valori medi, variabili fra marche e prodotti. Indicazioni per persona sana senza patologie note:
+      non sostituiscono il parere di un medico o di un nutrizionista.
+    </p>
+  </section>
+
+
+
+
+</div>
