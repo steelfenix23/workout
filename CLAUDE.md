@@ -74,6 +74,13 @@ invece di leggerli a occhio.
   7×12×3, front squat e stacco rumeno 8,5 (carichi gambe d'ingresso molto bassi), rematore 10.
   Trazioni erano bloccate a 3/3/3 per un range 3-3 (corretto a 3-6). **Corsa punto debole:**
   1 uscita in 2 settimane contro 5-6 previste. Sedute 50-55 min.
+- **25/10 (sett. 8):** 21 sedute in 7 settimane (~3/sett. contro 4). Pesi su: panca 17,5×10×4,
+  trazioni 5/5/4/4/3, front squat 10×10×4, military 10. **Le sedute si accorciano dalla coda:**
+  ottobre Lower B ridotta a soli bulgarian (19/10), leg curl fermo dal 29/9, laterali e
+  rematore saltati in Upper A. Upper A dura ~52 min contro 40 previsti. **Corsa: 5 uscite su ~20,
+  nessuna dal 27/9 al 23/10, zero intervalli.** Peso 75,4 (+0,3 kg/sett., ok). Rematore fermo a
+  10 kg da 5 settimane: va al massimo in entrambe le sedute ma Upper A (3 serie) e Upper B
+  (4 serie) si annullano a vicenda in `suggestFor`. Partite registrate solo fino al 14/10.
 - Stima fisico: FFMI ~17,5-19 (media non allenato). Obiettivo realistico: FFMI ~20 a 12 mesi
   (79-80 kg), ~21 a 2 anni. Fra 9-12 mesi i manubri da 32 kg diventano il limite → valutare
   una palestra.
