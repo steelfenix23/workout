@@ -38,7 +38,14 @@ leggibili su schermo piccolo, tabelle brevi.
   progressione (5-8), **scarico (9)**, consolidamento (10-12). Doppia progressione.
 - Il **Nordic curl** non è praticabile (appoggio sotto il tapis scomodo): sostituito dal
   **leg curl con manubrio**. La definizione del Nordic resta in `program.js`.
-- Corsa: camminata in salita (parte dal 4%, sale di 1 punto ogni 2 settimane), corsa facile
+- **Dal 25/10 (sett. 8) sedute per l'estetica:** max 3 serie per esercizio, 35-40 min. Upper A
+  spinta e spalle (panca, trazioni, laterali, military, estensioni tricipiti), Lower A + curl
+  martello, Upper B tirata e braccia (rematore, inclinata, laterali, dips, curl supino,
+  posteriori), Lower B femorali e glutei + estensioni tricipiti. Tolti calf unilaterale e dead
+  bug. Esercizi nuovi confermati: estensioni tricipiti sopra la testa, curl supino. **Non
+  vuole misure** (vita, foto): basta il peso. La progressione guarda prima la stessa seduta.
+- **Corsa ridotta a mantenimento:** dalla sett. 8 una camminata in salita a settimana (tetto 6%).
+- Corsa (storico): camminata in salita (parte dal 4%, sale di 1 punto ogni 2 settimane), corsa facile
   e lunga **alternate corsa/camminata** nelle prime settimane. Le intensità iniziali erano troppo
   alte e sono state abbassate dopo i suoi dati.
 - Regole calcetto: niente gambe pesanti il giorno prima **né il giorno stesso**; dopo la

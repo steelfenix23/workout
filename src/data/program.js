@@ -131,6 +131,33 @@ export const EXERCISES = [
     video: yt("curl a martello manubri tecnica"),
   },
   {
+    id: "curl_supino", name: "Curl con Manubri", muscle: "Bicipiti", equipment: "Manubri",
+    primary: "Bicipiti", secondary: "Brachiale, avambraccio", entryWeight: 8.5,
+    steps: [
+      "In piedi, manubri lungo i fianchi, palmi rivolti in avanti.",
+      "Gomiti fermi ai fianchi: si muove solo l'avambraccio.",
+      "Porta i manubri verso le spalle e contrai il bicipite in cima.",
+      "Scendi lento fino a braccia distese, senza rilassare del tutto.",
+    ],
+    mistakes: ["Oscillare il busto per tirare su il peso.", "Gomiti che avanzano: il lavoro passa alla spalla.", "Mezza discesa."],
+    tempo: "1s salita · 2-3s discesa",
+    video: yt("curl con manubri presa supina tecnica"),
+  },
+  {
+    id: "estensioni_tricipiti", name: "Estensioni Tricipiti sopra la Testa", muscle: "Tricipiti", equipment: "1 manubrio a due mani",
+    primary: "Tricipiti (soprattutto il capo lungo)", secondary: "Core", entryWeight: 10,
+    steps: [
+      "Seduto sulla panca con lo schienale dritto, o in piedi: un manubrio tenuto a due mani sopra la testa.",
+      "Gomiti stretti e puntati in alto, vicino alla testa.",
+      "Abbassa il manubrio dietro la nuca piegando solo i gomiti, fino a sentire lo stretch.",
+      "Risali distendendo le braccia senza bloccare di scatto i gomiti.",
+    ],
+    mistakes: ["Gomiti che si aprono verso l'esterno.", "Inarcare la schiena: tieni l'addome contratto.", "Scendere poco: lo stretch in basso è la parte che fa crescere."],
+    tempo: "2-3s discesa · 1s spinta",
+    note: "Il carico è quello dell'unico manubrio. Il tricipite è due terzi del braccio: per l'estetica conta più del bicipite.",
+    video: yt("estensioni tricipiti sopra la testa manubrio tecnica"),
+  },
+  {
     id: "front_squat", name: "Front Squat con Manubri", muscle: "Quadricipiti e glutei", equipment: "2 manubri",
     primary: "Quadricipiti, glutei", secondary: "Core, adduttori", entryWeight: 12,
     steps: [
@@ -297,46 +324,51 @@ export const EX = Object.fromEntries(EXERCISES.map((e) => [e.id, e]));
 // nordic: true    → seduta dedicata ai femorali (regola: almeno 3 giorni prima della partita).
 //                   Il nome è rimasto dal Nordic curl, che è stato sostituito ma può tornare:
 //                   la definizione dell'esercizio è ancora qui sopra.
+//
+// Dal 25/10 l'obiettivo è l'estetica: massimo 3 serie per esercizio perché ogni seduta
+// stia nei 40 minuti anche nelle sere stanche, spalle e braccia in ogni seduta, e gli
+// esercizi che contano per l'aspetto non più in fondo, dove finivano tagliati.
 
 export const DAYS = [
   {
-    id: "upper_a", name: "Upper A", subtitle: "Spinta", minutes: 40,
+    id: "upper_a", name: "Upper A", subtitle: "Spinta e spalle", minutes: 40,
     items: [
-      { exId: "panca_piana", sets: 4, repsMin: 6, repsMax: 10 },
-      { exId: "trazioni", sets: 5, repsMin: 3, repsMax: 6 },
+      { exId: "panca_piana", sets: 3, repsMin: 6, repsMax: 10 },
+      { exId: "trazioni", sets: 3, repsMin: 3, repsMax: 6 },
+      { exId: "alzate_laterali", sets: 3, repsMin: 12, repsMax: 20 },
       { exId: "military_press", sets: 3, repsMin: 8, repsMax: 12 },
-      { exId: "rematore", sets: 3, repsMin: 8, repsMax: 12 },
-      { exId: "alzate_laterali", sets: 2, repsMin: 12, repsMax: 20 },
+      { exId: "estensioni_tricipiti", sets: 2, repsMin: 10, repsMax: 15 },
     ],
   },
   {
-    id: "lower_a", name: "Lower A", subtitle: "Pesante", minutes: 40, legs: true,
+    id: "lower_a", name: "Lower A", subtitle: "Pesante", minutes: 35, legs: true,
     items: [
-      { exId: "front_squat", sets: 4, repsMin: 6, repsMax: 10 },
-      { exId: "stacco_rumeno", sets: 4, repsMin: 8, repsMax: 12 },
-      { exId: "affondi_inversi", sets: 3, repsMin: 8, repsMax: 10 },
-      { exId: "calf_raise", sets: 3, repsMin: 12, repsMax: 20 },
-    ],
-  },
-  {
-    id: "upper_b", name: "Upper B", subtitle: "Tirata", minutes: 40,
-    items: [
-      { exId: "rematore", sets: 4, repsMin: 6, repsMax: 10, weightBump: 1.5 },
-      { exId: "panca_inclinata", sets: 3, repsMin: 8, repsMax: 12 },
-      { exId: "dips", sets: 4, repsMin: 6, repsMax: 10 },
-      { exId: "alzate_posteriori", sets: 3, repsMin: 15, repsMax: 20 },
+      { exId: "front_squat", sets: 3, repsMin: 6, repsMax: 10 },
+      { exId: "stacco_rumeno", sets: 3, repsMin: 8, repsMax: 12 },
+      { exId: "affondi_inversi", sets: 2, repsMin: 8, repsMax: 10 },
       { exId: "curl_martello", sets: 2, repsMin: 10, repsMax: 15 },
+      { exId: "calf_raise", sets: 2, repsMin: 12, repsMax: 20 },
     ],
   },
   {
-    id: "lower_b", name: "Lower B", subtitle: "Femorali e unilaterale", minutes: 30, legs: true, nordic: true,
+    id: "upper_b", name: "Upper B", subtitle: "Tirata e braccia", minutes: 40,
+    items: [
+      { exId: "rematore", sets: 3, repsMin: 6, repsMax: 10, weightBump: 1.5 },
+      { exId: "panca_inclinata", sets: 3, repsMin: 8, repsMax: 12 },
+      { exId: "alzate_laterali", sets: 2, repsMin: 12, repsMax: 20 },
+      { exId: "dips", sets: 3, repsMin: 6, repsMax: 10 },
+      { exId: "curl_supino", sets: 2, repsMin: 8, repsMax: 12 },
+      { exId: "alzate_posteriori", sets: 2, repsMin: 15, repsMax: 20 },
+    ],
+  },
+  {
+    id: "lower_b", name: "Lower B", subtitle: "Femorali e glutei", minutes: 35, legs: true, nordic: true,
     items: [
       { exId: "bulgarian", sets: 3, repsMin: 8, repsMax: 12 },
       { exId: "leg_curl_manubrio", sets: 3, repsMin: 10, repsMax: 15 },
       { exId: "hip_thrust", sets: 3, repsMin: 12, repsMax: 15 },
-      { exId: "calf_unilaterale", sets: 3, repsMin: 12, repsMax: 15 },
-      { exId: "plank", sets: 3, repsMin: 30, repsMax: 60 },
-      { exId: "dead_bug", sets: 3, repsMin: 8, repsMax: 12 },
+      { exId: "estensioni_tricipiti", sets: 2, repsMin: 10, repsMax: 15 },
+      { exId: "plank", sets: 2, repsMin: 30, repsMax: 60 },
     ],
   },
 ];
@@ -369,10 +401,11 @@ export function runGuidance(type, week) {
   const w = Math.min(12, Math.max(1, week));
 
   if (type === "salita") {
-    const incline = Math.min(10, 4 + Math.floor((w - 1) / 2));
+    // Tetto al 6%: dopo il 25/10 la corsa è solo mantenimento, non deve più crescere.
+    const incline = Math.min(6, 4 + Math.floor((w - 1) / 2));
     return {
       speed: "5-5,5 km/h", incline: `${incline}%`,
-      note: `Pendenza ${incline}% questa settimana, poi sale di un punto ogni due settimane. Se a metà seduta non riesci più a parlare, scendi di due punti: deve essere sostenibile a lungo, non dura.`,
+      note: `Pendenza ${incline}%. Se a metà seduta non riesci più a parlare, scendi di due punti: deve essere sostenibile a lungo, non dura.`,
     };
   }
 
@@ -420,7 +453,7 @@ export const PHASES = [
   { from: 9,  to: 9,  name: "Scarico",        setsCap: 2, loadFactor: 1,    sessions: 3,
     rule: "Settimana leggera programmata, presa prima che la chieda il corpo." },
   { from: 10, to: 12, name: "Consolidamento", setsCap: 9, loadFactor: 1,    sessions: 4,
-    rule: "Si chiude puntando ai 5 km continui e ai record sui fondamentali." },
+    rule: "Si chiude puntando ai record sui fondamentali." },
 ];
 
 export function phaseForWeek(week) {
@@ -429,8 +462,9 @@ export function phaseForWeek(week) {
 }
 
 // ─── Il piano di corsa, settimana per settimana ──────────────────────────────
-// La corsa lunga cresce di circa il 10% a settimana: è il limite oltre il quale
-// ci si infortuna. La settimana 9 è di scarico: solo camminate.
+// La corsa lunga cresceva di circa il 10% a settimana. Dalla settimana 8 (25/10)
+// l'obiettivo è l'estetica e la corsa è solo mantenimento per il calcetto: una
+// camminata in salita a settimana, che pesa poco sulle calorie.
 
 export const RUN_PLAN = {
   1:  [{ type: "salita", minutes: 25 }, { type: "facile", minutes: 20 }],
@@ -440,11 +474,11 @@ export const RUN_PLAN = {
   5:  [{ type: "salita", minutes: 26 }, { type: "intervalli", minutes: 25 }, { type: "lunga", minutes: 24 }],
   6:  [{ type: "salita", minutes: 29 }, { type: "intervalli", minutes: 25 }, { type: "lunga", minutes: 26 }],
   7:  [{ type: "salita", minutes: 36 }, { type: "intervalli", minutes: 25 }, { type: "lunga", minutes: 29 }],
-  8:  [{ type: "salita", minutes: 38 }, { type: "intervalli", minutes: 25 }, { type: "lunga", minutes: 32 }],
-  9:  [{ type: "salita", minutes: 25 }, { type: "salita", minutes: 25 }],
-  10: [{ type: "salita", minutes: 40 }, { type: "intervalli", minutes: 25 }, { type: "lunga", minutes: 35 }],
-  11: [{ type: "salita", minutes: 47 }, { type: "intervalli", minutes: 25 }, { type: "lunga", minutes: 38 }],
-  12: [{ type: "salita", minutes: 48 }, { type: "intervalli", minutes: 25 }, { type: "lunga", minutes: 42 }],
+  8:  [{ type: "salita", minutes: 30 }],
+  9:  [{ type: "salita", minutes: 25 }],
+  10: [{ type: "salita", minutes: 30 }],
+  11: [{ type: "salita", minutes: 30 }],
+  12: [{ type: "salita", minutes: 30 }],
 };
 
 export function runPlanForWeek(week) {

@@ -41,14 +41,14 @@ test("le fasi coprono le 12 settimane senza buchi", () => {
   }
   assert.equal(phaseForWeek(1).name, "Riadattamento");
   assert.equal(phaseForWeek(9).name, "Scarico");
-  assert.equal(runTargetForWeek(12), 115);
+  assert.equal(runTargetForWeek(12), 30);
 });
 
 test("in riadattamento i carichi sono scontati e le serie limitate", () => {
   // Inizio OGGI: la fase dipende dalla data corrente, e una data fissa faceva
   // uscire il test dal riadattamento da solo dopo due settimane.
   const s = base({ profile: { ...base().profile, startedAt: todayISO() } });
-  const item = DAY.upper_a.items[0]; // panca 4 serie
+  const item = DAY.upper_a.items[0]; // panca 3 serie
   const sug = suggestFor(s, "upper_a", item);
   assert.equal(sug.sets, 2, "in fase 1 al massimo 2 serie");
   assert.ok(sug.weight < 17.5, "carico scontato rispetto all'ingresso");
@@ -56,7 +56,7 @@ test("in riadattamento i carichi sono scontati e le serie limitate", () => {
 
 test("doppia progressione: tutte le serie al massimo fanno salire di uno scatto", () => {
   const s = base({ profile: { ...base().profile, startedAt: "2026-06-01" } }); // fase piena
-  const item = DAY.upper_a.items[0]; // 4 × 6-10
+  const item = DAY.upper_a.items[0]; // 3 × 6-10
   s.sessions.push(session("upper_a", "2026-09-01", [
     { exId: "panca_piana", setNumber: 1, weight: 19, reps: 10, done: true },
     { exId: "panca_piana", setNumber: 2, weight: 19, reps: 10, done: true },
@@ -157,10 +157,10 @@ test("i record personali prendono la prestazione migliore per esercizio", () => 
 });
 
 test("il piano di corsa copre 12 settimane e i totali coincidono col programma", () => {
-  const attesi = [45, 50, 60, 65, 75, 80, 90, 95, 50, 100, 110, 115];
+  const attesi = [45, 50, 60, 65, 75, 80, 90, 30, 25, 30, 30, 30];
   for (let w = 1; w <= 12; w++) {
     const plan = runPlanForWeek(w);
-    assert.ok(plan.length >= 2, `settimana ${w}: troppe poche sedute`);
+    assert.ok(plan.length >= 1, `settimana ${w}: nessuna seduta`);
     assert.equal(runTargetForWeek(w), attesi[w - 1], `settimana ${w}`);
     assert.equal(plan.reduce((t, r) => t + r.minutes, 0), attesi[w - 1],
       `settimana ${w}: la somma del piano deve essere l'obiettivo`);
@@ -291,4 +291,35 @@ test("senza giorno fisso l'app non deduce il giorno dall'ultima partita", () => 
   s.matches.push({ date: "2026-09-02" });             // mercoledì passato
   assert.equal(nextMatchIn(s, "2026-09-08"), null);
   assert.equal(checkRules(s, "lower_a", "2026-09-08"), null);
+});
+
+test("dalla settimana 8 la corsa è una sola camminata in salita", () => {
+  for (let w = 8; w <= 12; w++) {
+    assert.deepEqual(runPlanForWeek(w).map((r) => r.type), ["salita"], `settimana ${w}`);
+  }
+});
+
+test("ogni seduta sta nei 40 minuti: al massimo 3 serie per esercizio e 16 in tutto", () => {
+  for (const d of Object.values(DAY)) {
+    for (const it of d.items) assert.ok(it.sets <= 3, `${d.name} → ${it.exId}: ${it.sets} serie`);
+    const tot = d.items.reduce((t, i) => t + i.sets, 0);
+    assert.ok(tot <= 16, `${d.name}: ${tot} serie`);
+  }
+});
+
+test("un esercizio in due sedute progredisce guardando la stessa seduta", () => {
+  // Il caso reale del rematore: al massimo in entrambe le sedute, ma ognuna si
+  // confrontava con l'altra (serie e range diversi) e il carico restava fermo.
+  const s = base({ profile: { ...base().profile, startedAt: "2026-06-01" } });
+  const set = (n, reps) => ({ exId: "alzate_laterali", setNumber: n, weight: 5.5, reps, done: true });
+  s.sessions.push(session("upper_a", "2026-10-10", [set(1, 20), set(2, 20), set(3, 20)]));
+  s.sessions.push(session("upper_b", "2026-10-16", [set(1, 14), set(2, 12)]));
+  const itemA = DAY.upper_a.items.find((i) => i.exId === "alzate_laterali");
+  const sugA = suggestFor(s, "upper_a", itemA);
+  assert.equal(sugA.progressed, true, "in Upper A era al massimo: si sale");
+  assert.equal(sugA.weight, 7);
+  const itemB = DAY.upper_b.items.find((i) => i.exId === "alzate_laterali");
+  assert.equal(suggestFor(s, "upper_b", itemB).weight, 5.5, "in Upper B non ancora");
+  // Mai fatto in questa seduta: vale l'ultima volta in assoluto.
+  assert.equal(lastSetsFor(s, "alzate_laterali", null, "lower_a").date, "2026-10-16");
 });

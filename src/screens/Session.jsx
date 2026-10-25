@@ -35,7 +35,7 @@ export default function Session({ sessionId, onClose, onExercise }) {
   }
 
   const sets = session.sets.filter((s) => s.exId === item.exId);
-  const last = lastSetsFor(state, item.exId, sessionId);
+  const last = lastSetsFor(state, item.exId, sessionId, session.dayId);
 
   const doneCount = session.sets.filter((s) => s.done).length;
   const pct = Math.round((doneCount / Math.max(1, session.sets.length)) * 100);

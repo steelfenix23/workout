@@ -160,7 +160,7 @@ function buildVerdict(type, speed, effort, km, state) {
 
   const best = Math.max(0, ...state.runs.filter((r) => r.type === type).map((r) => Number(r.km) || 0));
   if (km > best && km > 0) {
-    return "Sei nella fascia giusta, e questa è la distanza più lunga che hai coperto con questa seduta. È esattamente così che si arriva ai 5 km.";
+    return "Sei nella fascia giusta, e questa è la distanza più lunga che hai coperto con questa seduta. È esattamente così che si mantiene il fiato.";
   }
   return "Sei nella fascia giusta: se riuscivi a parlare, questa è la corsa che serve. La lentezza adesso è la velocità di dopo.";
 }

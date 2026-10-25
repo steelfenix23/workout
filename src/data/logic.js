@@ -138,11 +138,22 @@ function alternativeTo(state, dayId) {
 
 // ─── Storico per esercizio ───────────────────────────────────────────────────
 
-/** Le serie dell'ultima volta che quell'esercizio è stato effettivamente svolto. */
-export function lastSetsFor(state, exId, beforeSessionId = null) {
+/**
+ * Le serie dell'ultima volta che quell'esercizio è stato effettivamente svolto.
+ *
+ * Con dayId si guarda prima la stessa seduta: un esercizio presente in due sedute
+ * con serie o range diversi (il rematore fino al 25/10, ora le alzate laterali)
+ * altrimenti si confronta con l'altra e non risulta mai "al massimo", restando
+ * fermo per settimane. Se in quella seduta non c'è ancora, vale l'ultima qualsiasi.
+ */
+export function lastSetsFor(state, exId, beforeSessionId = null, dayId = null) {
   const done = state.sessions
     .filter((s) => s.endedAt && s.id !== beforeSessionId)
     .sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id));
+  if (dayId) {
+    const same = lastSetsFor({ sessions: done.filter((s) => s.dayId === dayId) }, exId);
+    if (same) return same;
+  }
   for (const s of done) {
     const sets = s.sets.filter((x) => x.exId === exId && x.done && x.reps > 0);
     if (sets.length) return { date: s.date, sets };
@@ -182,7 +193,7 @@ export function suggestFor(state, dayId, item, sessionId = null) {
   const ex = EX[item.exId];
   const phase = currentPhase(state);
   const step = state.profile.weightStep || 1.5;
-  const last = lastSetsFor(state, item.exId, sessionId);
+  const last = lastSetsFor(state, item.exId, sessionId, dayId);
   const sets = Math.min(item.sets, phase.setsCap);
 
   if (!last) {

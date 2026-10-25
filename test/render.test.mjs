@@ -136,10 +136,10 @@ test("la seduta mostra le serie di OGGI, non quelle nominali della scheda", () =
     ],
   });
   const html = render("Session", s, { sessionId: "live" });
-  assert.match(html, /Oggi: 2 serie/, "deve dire 2 serie, non le 4 a regime");
-  assert.match(html, /ridotte da 4 per la fase in corso/, "e deve spiegare perché");
+  assert.match(html, /Oggi: 2 serie/, "deve dire 2 serie, non le 3 a regime");
+  assert.match(html, /ridotte da 3 per la fase in corso/, "e deve spiegare perché");
   assert.match(html, /1ª volta/, "la colonna Prec. deve dire che non c'è storico");
-  assert.doesNotMatch(html, /Oggi: 4 serie/);
+  assert.doesNotMatch(html, /Oggi: 3 serie/);
 });
 
 test("la dieta si apre sul giorno di oggi con i cinque pasti", () => {
