@@ -91,6 +91,15 @@ invece di leggerli a occhio.
   nessuna dal 27/9 al 23/10, zero intervalli.** Peso 75,4 (+0,3 kg/sett., ok). Rematore fermo a
   10 kg da 5 settimane: va al massimo in entrambe le sedute ma Upper A (3 serie) e Upper B
   (4 serie) si annullano a vicenda in `suggestFor`. Partite registrate solo fino al 14/10.
+- **21/11 (sett. 12):** con le sedute nuove **le completa quasi sempre** (prima le tagliava).
+  Scarico fatto bene (5 sedute). Ma la frequenza è scesa: 0 sedute in sett. 8, 1 in sett. 10,
+  2 in sett. 11 (viaggio 12-16/11): **~2/sett. nell'ultimo mese**, buchi di 9-10 giorni.
+  Carichi: panca 19×10×3, rematore 11,5×10×3 (sbloccato), laterali 5,5×20 in entrambe,
+  hip thrust 19×15×3, leg curl 5,5×15×3, dips 10×3 a corpo libero (→ zavorra). Military e
+  tricipiti crollano alla 2ª serie (11→6, 15→7): prima serie troppo vicina al cedimento, e le
+  laterali prima della military la pre-affaticano. Sedute di nuovo 58-59 min. Peso 76,0 il 5/11
+  → **74,9 il 21/11** (dopo il viaggio, una sola misura). Lower B il 17/11, partita il 18/11.
+  La sett. 12 finisce il 26/11: il programma non ha un seguito definito.
 - Stima fisico: FFMI ~17,5-19 (media non allenato). Obiettivo realistico: FFMI ~20 a 12 mesi
   (79-80 kg), ~21 a 2 anni. Fra 9-12 mesi i manubri da 32 kg diventano il limite → valutare
   una palestra.
