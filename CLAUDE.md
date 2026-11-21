@@ -24,7 +24,13 @@ leggibili su schermo piccolo, tabelle brevi.
 ## Preferenze ferme
 
 - **Nessun timer di recupero** tra le serie, mai: le pause le gestisce lui.
-- **Nessuna notifica** di alcun tipo nell'app.
+- ~~Nessuna notifica~~ → **cambiato il 21/11 su sua richiesta** ("aiutami a essere più costante"):
+  vuole sapere sempre quando allenarsi e quando riposare. Ha un **iPhone**. Scelta: **eventi nel
+  calendario del telefono** (.ics esportato dall'app, `src/data/planner.js`) con 2 promemoria,
+  la sera prima alle 21 e il giorno stesso (17:30 feriali, 9:00 festivi). Niente notifiche push
+  (servirebbe un server). Il piano si ricalcola da solo (sedute saltate, partite, viaggi): se
+  cambia, Oggi dice "aggiorna il calendario". **Viaggi = solo riposo**, li segna lui ("Sono via",
+  `state.away`).
 - **Dieta nell'app solo in lettura** (scheda Dieta). Mai tracciamento pasti, conteggi, spunte.
 - Ogni esercizio proposto ha un **link video**: URL di *ricerca* YouTube, non video singoli.
   Ha rinunciato ai video incorporati: "ormai ho imparato gli esercizi".

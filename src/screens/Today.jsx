@@ -4,6 +4,7 @@ import {
   nextDayId, checkRules, currentPhase, weekStats, dow, addDays, suggestFor, goalBoard,
   nextRun, checkRunRules,
 } from "../data/logic.js";
+import { planDays, calendarICS, exportedMap, calendarDiff } from "../data/planner.js";
 
 const DOW = ["L", "M", "M", "G", "V", "S", "D"];
 
@@ -15,6 +16,23 @@ export default function Today({ open }) {
 
   const run = nextRun(state, iso);
   const runRule = run.next ? checkRunRules(state, run.next.type, iso) : null;
+
+  const plan = planDays(state, { from: iso });
+  const todayPlan = plan.days[0];
+  const nextTrain = plan.days.find((d) => d.kind === "train" && d.date > iso);
+  const calendar = state.settings.calendar;
+  const changed = calendarDiff(plan, calendar?.exported);
+
+  function exportCalendar() {
+    const seq = (calendar?.seq || 0) + 1;
+    const ics = calendarICS(plan, calendar?.exported || {}, seq);
+    update((s) => {
+      s.settings.calendar = { exported: exportedMap(plan), seq, at: iso };
+      return s;
+    });
+    // Su iPhone un file di calendario aperto così mostra "Aggiungi tutti".
+    window.location.href = "data:text/calendar;charset=utf-8," + encodeURIComponent(ics);
+  }
 
   const openSession = state.sessions.find((s) => !s.endedAt);
   const dayId = openSession ? openSession.dayId : nextDayId(state);
@@ -76,16 +94,59 @@ export default function Today({ open }) {
         <p className="sub">
           {day.items.map((i) => EX[i.exId]?.name.split(" ")[0]).join(", ")} · circa {day.minutes} minuti
         </p>
+        {!openSession && todayPlan && todayPlan.kind !== "train" && (
+          <p className="tiny">
+            {todayPlan.kind === "done" ? "Oggi hai già fatto la tua seduta." : todayPlan.kind === "away" ? "Oggi sei via." : "Oggi è giorno di riposo."}
+            {nextTrain && ` Questa tocca ${dayLabel(nextTrain.date)}.`} Se vuoi, puoi farla comunque.
+          </p>
+        )}
         <button className="btn wide" onClick={() => (openSession ? open({ kind: "session", sessionId: openSession.id }) : startSession())}>
           {openSession ? "Riprendi" : "Inizia"}
         </button>
       </div>
 
-      <div className="btnrow">
+      <div className="btnrow" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
         <button className="btn ghost" onClick={() => open({ kind: "match" })}>
           {state.matches.some((m) => m.date === iso) ? "Calcetto ✓" : "Calcetto"}
         </button>
-        <button className="btn ghost" onClick={() => open({ kind: "run" })}>Registra corsa</button>
+        <button className="btn ghost" onClick={() => open({ kind: "away" })}>Sono via</button>
+        <button className="btn ghost" onClick={() => open({ kind: "run" })}>Corsa</button>
+      </div>
+
+      <div className="card">
+        <p className="eyebrow">I prossimi giorni</p>
+        {changed?.length > 0 && (
+          <p className="tiny" style={{ color: "var(--forza)" }}>
+            <b>Il piano è cambiato</b> ({changed.map(dayLabel).join(", ")}): aggiorna il calendario.
+          </p>
+        )}
+        <div className="list">
+          {plan.days.slice(0, 7).map((d) => (
+            <div key={d.date}>
+              <div className="lead">
+                <b>{d.kind === "train" ? DAY[d.dayId].name : d.kind === "done" ? `${DAY[d.dayId].name} ✓` : d.kind === "away" ? "Via" : "Riposo"}</b>
+                <small>
+                  {d.date === iso ? "oggi" : dayLabel(d.date)}
+                  {d.kind === "train" && ` · ${d.inProgress ? "in corso" : d.time}`}
+                  {d.match && " · calcetto"}
+                </small>
+              </div>
+              {d.kind === "train" && <span className="badge forza">{DAY[d.dayId].subtitle}</span>}
+            </div>
+          ))}
+        </div>
+        {plan.shortWeeks.map((w) => (
+          <p className="tiny" key={w.monday}>
+            Settimana del {dayLabel(w.monday)}: con il viaggio ci stanno {w.planned} sedute su {w.quota}. Va bene così.
+          </p>
+        ))}
+        <button className="btn ghost wide" onClick={exportCalendar}>
+          {calendar ? "Aggiorna il calendario" : "Aggiungi al calendario"}
+        </button>
+        <p className="tiny">
+          Due promemoria per seduta: la sera prima alle 21 e il giorno stesso (17:30, nei festivi
+          alle 9). La camminata in salita falla quando vuoi, anche nei giorni di riposo.
+        </p>
       </div>
 
       {run.next ? (
@@ -170,6 +231,11 @@ export default function Today({ open }) {
       </div>
     </>
   );
+}
+
+const GG = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"];
+function dayLabel(iso) {
+  return `${GG[dow(iso)]} ${Number(iso.slice(8))}/${Number(iso.slice(5, 7))}`;
 }
 
 function greeting() {

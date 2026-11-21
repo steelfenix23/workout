@@ -168,3 +168,17 @@ test("Progressi si apre sugli obiettivi del blocco e di fine maggio", () => {
   assert.match(html, /Panca Piana 22 kg × 8 · tutte le serie/);
   assert.match(html, /di 6 raggiunti/);
 });
+
+test("Oggi mostra il piano dei prossimi giorni e il pulsante per il calendario", () => {
+  const html = render("Today", state());
+  assert.match(html, /I prossimi giorni/);
+  assert.match(html, /Aggiungi al calendario/);
+  assert.match(html, /Sono via/);
+});
+
+test("il foglio dei viaggi permette di segnare dal-al e mostra quelli futuri", () => {
+  const html = render("AwaySheet", state({ away: [{ from: "2099-01-10", to: "2099-01-12" }] }));
+  assert.match(html, /Dal/);
+  assert.match(html, /Segna il viaggio/);
+  assert.match(html, /10\/1 → /);
+});

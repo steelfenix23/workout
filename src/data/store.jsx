@@ -66,6 +66,7 @@ export function emptyState() {
     runs: [],                // { id, date, type, minutes, km, incline, effort, note }
     weights: [],             // { date, kg }
     matches: [],             // { date }  — il calcetto
+    away: [],                // { from, to } — giorni fuori casa (viaggi): niente sedute
     legacy: [],              // storico importato dalla vecchia app, sola lettura
     settings: { supabaseUrl: "", supabaseKey: "", lastSync: null },
   };
@@ -81,7 +82,7 @@ function migrate(doc) {
     profile: { ...base.profile, ...(doc.profile || {}) },
     settings: { ...base.settings, ...(doc.settings || {}) },
   };
-  for (const k of ["sessions", "runs", "weights", "matches", "legacy", "rotation"]) {
+  for (const k of ["sessions", "runs", "weights", "matches", "away", "legacy", "rotation"]) {
     if (!Array.isArray(out[k])) out[k] = base[k];
   }
   if (typeof out.rotationPos !== "number") out.rotationPos = 0;

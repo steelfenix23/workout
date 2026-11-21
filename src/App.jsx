@@ -8,6 +8,7 @@ import Session from "./screens/Session.jsx";
 import RunLog from "./screens/RunLog.jsx";
 import ExerciseSheet from "./components/ExerciseSheet.jsx";
 import MatchSheet from "./components/MatchSheet.jsx";
+import AwaySheet from "./components/AwaySheet.jsx";
 
 const TABS = [
   { id: "today", label: "Oggi" },
@@ -23,12 +24,14 @@ export default function App() {
   const [runPreset, setRunPreset] = useState(null); // null = chiusa
   const [exId, setExId] = useState(null);           // scheda esercizio, sopra a tutto
   const [matchOpen, setMatchOpen] = useState(false);
+  const [awayOpen, setAwayOpen] = useState(false);
 
   const open = (o) => {
     if (o.kind === "session") setSessionId(o.sessionId);
     else if (o.kind === "run") setRunPreset(o.preset ?? {});
     else if (o.kind === "exercise") setExId(o.exId);
     else if (o.kind === "match") setMatchOpen(true);
+    else if (o.kind === "away") setAwayOpen(true);
   };
 
   const sheet = exId ? <ExerciseSheet exId={exId} onClose={() => setExId(null)} /> : null;
@@ -68,6 +71,7 @@ export default function App() {
 
       {runPreset && <RunLog preset={runPreset} onClose={() => setRunPreset(null)} />}
       {matchOpen && <MatchSheet onClose={() => setMatchOpen(false)} />}
+      {awayOpen && <AwaySheet onClose={() => setAwayOpen(false)} />}
       {sheet}
     </div>
   );
