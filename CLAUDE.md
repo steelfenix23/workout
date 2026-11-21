@@ -99,7 +99,8 @@ invece di leggerli a occhio.
   tricipiti crollano alla 2ª serie (11→6, 15→7): prima serie troppo vicina al cedimento, e le
   laterali prima della military la pre-affaticano. Sedute di nuovo 58-59 min. Peso 76,0 il 5/11
   → **74,9 il 21/11** (dopo il viaggio, una sola misura). Lower B il 17/11, partita il 18/11.
-  La sett. 12 finisce il 26/11: il programma non ha un seguito definito.
+  La sett. 12 finisce il 26/11: il programma non ha un seguito definito. Cause dei buchi
+  (sue parole): **stanchezza da lavoro e poca voglia**. Vuole restare su **4 sedute a settimana**.
 - Stima fisico: FFMI ~17,5-19 (media non allenato). Obiettivo realistico: FFMI ~20 a 12 mesi
   (79-80 kg), ~21 a 2 anni. Fra 9-12 mesi i manubri da 32 kg diventano il limite → valutare
   una palestra.
