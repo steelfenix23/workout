@@ -94,3 +94,14 @@ test("il piano cambiato rispetto al calendario esportato viene segnalato", () =>
   s.away = [{ from: LUN, to: LUN }];
   assert.ok(calendarDiff(plan(s), exported).includes(LUN));
 });
+
+test("una seduta fatta oggi non fa dire che il piano è cambiato", () => {
+  const s = base();
+  const exported = exportedMap(plan(s));               // esportato prima di allenarsi
+  s.sessions.push({ id: "a", dayId: exported[LUN], date: LUN, endedAt: "x", sets: [] });
+  s.rotationPos = 1;
+  assert.deepEqual(calendarDiff(plan(s), exported), []);
+  // Anche esportando a seduta in corso (oggi escluso dal calendario) e poi chiudendola.
+  const during = { ...exported }; delete during[LUN];
+  assert.deepEqual(calendarDiff(plan(s), during), []);
+});

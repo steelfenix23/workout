@@ -249,6 +249,7 @@ export function calendarDiff(plan, exported) {
   const changed = [];
   for (const d of plan.days) {
     if (d.date > last) break;
+    if (d.kind === "done" || d.inProgress) continue;          // oggi l'hai fatta: niente da spostare
     if ((now[d.date] ?? null) !== (exported[d.date] ?? null)) changed.push(d.date);
   }
   return changed;

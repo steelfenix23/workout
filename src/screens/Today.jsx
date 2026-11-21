@@ -4,7 +4,7 @@ import {
   nextDayId, checkRules, currentPhase, weekStats, dow, addDays, suggestFor, goalBoard,
   nextRun, checkRunRules,
 } from "../data/logic.js";
-import { planDays, calendarICS, exportedMap, calendarDiff } from "../data/planner.js";
+import { planDays, calendarDiff } from "../data/planner.js";
 
 const DOW = ["L", "M", "M", "G", "V", "S", "D"];
 
@@ -22,17 +22,6 @@ export default function Today({ open }) {
   const nextTrain = plan.days.find((d) => d.kind === "train" && d.date > iso);
   const calendar = state.settings.calendar;
   const changed = calendarDiff(plan, calendar?.exported);
-
-  function exportCalendar() {
-    const seq = (calendar?.seq || 0) + 1;
-    const ics = calendarICS(plan, calendar?.exported || {}, seq);
-    update((s) => {
-      s.settings.calendar = { exported: exportedMap(plan), seq, at: iso };
-      return s;
-    });
-    // Su iPhone un file di calendario aperto così mostra "Aggiungi tutti".
-    window.location.href = "data:text/calendar;charset=utf-8," + encodeURIComponent(ics);
-  }
 
   const openSession = state.sessions.find((s) => !s.endedAt);
   const dayId = openSession ? openSession.dayId : nextDayId(state);
@@ -140,7 +129,7 @@ export default function Today({ open }) {
             Settimana del {dayLabel(w.monday)}: con il viaggio ci stanno {w.planned} sedute su {w.quota}. Va bene così.
           </p>
         ))}
-        <button className="btn ghost wide" onClick={exportCalendar}>
+        <button className="btn ghost wide" onClick={() => open({ kind: "calendar" })}>
           {calendar ? "Aggiorna il calendario" : "Aggiungi al calendario"}
         </button>
         <p className="tiny">

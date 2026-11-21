@@ -182,3 +182,9 @@ test("il foglio dei viaggi permette di segnare dal-al e mostra quelli futuri", (
   assert.match(html, /Segna il viaggio/);
   assert.match(html, /10\/1 → /);
 });
+
+test("il foglio del calendario offre due strade per l'iPhone", () => {
+  const html = render("CalendarSheet", state());
+  assert.match(html, /Apri nel Calendario/);
+  assert.match(html, /Condividi il file/);
+});

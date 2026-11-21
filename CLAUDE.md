@@ -29,7 +29,10 @@ leggibili su schermo piccolo, tabelle brevi.
   calendario del telefono** (.ics esportato dall'app, `src/data/planner.js`) con 2 promemoria,
   la sera prima alle 21 e il giorno stesso (17:30 feriali, 9:00 festivi). Niente notifiche push
   (servirebbe un server). Il piano si ricalcola da solo (sedute saltate, partite, viaggi): se
-  cambia, Oggi dice "aggiorna il calendario". **Viaggi = solo riposo**, li segna lui ("Sono via",
+  cambia, Oggi dice "aggiorna il calendario". **Sul suo iPhone (app dalla Home) aprire il
+  .ics come `data:` URL non fa niente** (verificato 21/11): ora il foglio Calendario offre
+  "Apri nel Calendario" (blob in finestra nuova) e "Condividi il file"; ripiego sicuro: Mail a
+  se stesso. Da confermare con lui quale funziona, poi semplificare. **Viaggi = solo riposo**, li segna lui ("Sono via",
   `state.away`).
 - **Dieta nell'app solo in lettura** (scheda Dieta). Mai tracciamento pasti, conteggi, spunte.
 - Ogni esercizio proposto ha un **link video**: URL di *ricerca* YouTube, non video singoli.

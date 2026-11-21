@@ -13,11 +13,12 @@ import RunLog from "../../src/screens/RunLog.jsx";
 import ExerciseSheet from "../../src/components/ExerciseSheet.jsx";
 import MatchSheet from "../../src/components/MatchSheet.jsx";
 import AwaySheet from "../../src/components/AwaySheet.jsx";
+import CalendarSheet from "../../src/components/CalendarSheet.jsx";
 
 const noop = () => {};
 
 export function render(name, state, props = {}) {
-  const Screens = { Today, Program, Progress, More, Session, RunLog, ExerciseSheet, Diet, MatchSheet, AwaySheet };
+  const Screens = { Today, Program, Progress, More, Session, RunLog, ExerciseSheet, Diet, MatchSheet, AwaySheet, CalendarSheet };
   const C = Screens[name];
   return renderToString(
     <StoreProvider initialState={state}>
