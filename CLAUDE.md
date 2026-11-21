@@ -112,7 +112,10 @@ invece di leggerli a occhio.
   La sett. 12 finisce il 26/11: il programma non ha un seguito definito. Cause dei buchi
   (sue parole): **stanchezza da lavoro e poca voglia**. Vuole restare su **4 sedute a settimana**.
 - Stima fisico: FFMI ~17,5-19 (media non allenato). Obiettivo realistico: FFMI ~20 a 12 mesi
-  (79-80 kg), ~21 a 2 anni. Fra 9-12 mesi i manubri da 32 kg diventano il limite → valutare
+  (79-80 kg), ~21 a 2 anni. Detto a lui il 21/11 (chiedeva "quanto grosso posso diventare"):
+  rispettando tutto **82-85 kg a 2 anni**, tetto naturale ~85-90 kg in 5+ anni; col ritmo
+  dell'ultimo mese (2 sedute/sett., peso fermo da inizio ottobre) 76-78. La dieta scritta va
+  bene (3200-3500 kcal, 155-175 g proteine): il limite è quanta ne mangia davvero. Fra 9-12 mesi i manubri da 32 kg diventano il limite → valutare
   una palestra.
 
 ## Tecnica
