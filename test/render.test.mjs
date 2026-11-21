@@ -80,7 +80,7 @@ test("Scheda elenca tutte le sedute e i carichi", () => {
 
 test("Progressi regge sia lo stato vuoto sia lo storico", () => {
   assert.match(render("Progress", state()), /Progressi/);
-  const html = render("Progress", withHistory());
+  const html = render("Progress", withHistory(), { initialTab: "forza" });
   assert.match(html, /Massimale stimato|record/i);
 });
 
@@ -159,4 +159,12 @@ test("il foglio del calcetto permette di scegliere la data", () => {
   const html = render("MatchSheet", state({ matches: [{ date: "2026-08-27" }] }));
   assert.match(html, /type="date"/);
   assert.match(html, /Elimina/);
+});
+
+test("Progressi si apre sugli obiettivi del blocco e di fine maggio", () => {
+  const html = render("Progress", withHistory());
+  assert.match(html, /Blocco 2/);
+  assert.match(html, /Fine maggio 2027/);
+  assert.match(html, /Panca Piana 22 kg × 8 · tutte le serie/);
+  assert.match(html, /di 6 raggiunti/);
 });

@@ -4,24 +4,54 @@ import { EXERCISES, EX } from "../data/program.js";
 import { LineChart, BarChart } from "../components/Chart.jsx";
 import {
   historyFor, bestE1RM, personalRecords, weekStats, weekBounds, addDays,
-  programWeek, currentPhase, sessionVolume, fmt,
+  programWeek, currentPhase, sessionVolume, fmt, goalBoard,
 } from "../data/logic.js";
 
-export default function Progress({ open }) {
-  const [tab, setTab] = useState("forza");
+export default function Progress({ open, initialTab = "obiettivi" }) {
+  const [tab, setTab] = useState(initialTab);
   return (
     <>
       <h1>Progressi</h1>
       <div className="segmented">
+        <button aria-pressed={tab === "obiettivi"} onClick={() => setTab("obiettivi")}>Obiettivi</button>
         <button aria-pressed={tab === "forza"} onClick={() => setTab("forza")}>Forza</button>
         <button aria-pressed={tab === "corsa"} onClick={() => setTab("corsa")}>Corsa</button>
         <button aria-pressed={tab === "corpo"} onClick={() => setTab("corpo")}>Corpo</button>
       </div>
+      {tab === "obiettivi" && <Obiettivi />}
       {tab === "forza" && <Forza open={open} />}
       {tab === "corsa" && <Corsa />}
       {tab === "corpo" && <Corpo />}
     </>
   );
+}
+
+const dm = (iso) => `${iso.slice(8)}/${iso.slice(5, 7)}`;
+
+function Obiettivi() {
+  const { state } = useStore();
+  return goalBoard(state).map((g) => (
+    <div className="card" key={g.id}>
+      <p className="eyebrow">{g.title} · {g.active ? `entro il ${dm(g.until)}, mancano ${g.daysLeft} giorni` : `chiuso il ${dm(g.until)}`}</p>
+      <h3>{g.reachedCount} di {g.goals.length} raggiunti</h3>
+      <div className="list">
+        {g.goals.map((x) => (
+          <div key={x.goal.id} style={{ display: "block" }}>
+            <div className="row between">
+              <div className="lead">
+                <b>{x.label}</b>
+                <small>{x.current}</small>
+              </div>
+              <span className={"badge num" + (x.reached ? " forza" : "")}>
+                {x.reached ? `✓ ${dm(x.reached)}` : `${Math.round(x.progress * 100)}%`}
+              </span>
+            </div>
+            {!x.reached && <div className="progbar" style={{ marginTop: 6 }}><i style={{ width: `${Math.round(x.progress * 100)}%` }} /></div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  ));
 }
 
 function Forza({ open }) {

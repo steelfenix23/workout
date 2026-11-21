@@ -80,10 +80,12 @@ export default function Program({ open }) {
       </div>
 
       <div className="card">
-        <p className="eyebrow">Fase · settimana {phase.week} di 12</p>
+        <p className="eyebrow">
+          {phase.block > 1 ? `Blocco ${phase.block} · ` : ""}Fase · settimana {phase.blockWeek} di {phase.blockLength}
+        </p>
         <h3>{phase.name}</h3>
         <p className="sub">{phase.rule}</p>
-        <div className="progbar"><i style={{ width: `${Math.min(100, (phase.week / 12) * 100)}%` }} /></div>
+        <div className="progbar"><i style={{ width: `${Math.min(100, (phase.blockWeek / phase.blockLength) * 100)}%` }} /></div>
         <p className="tiny">
           {phase.setsCap < 9
             ? `In questa fase le serie sono limitate a ${phase.setsCap} per esercizio.`

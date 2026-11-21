@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   suggestFor, checkRules, nextDayId, advanceRotation, currentPhase,
   estimated1RM, lastSetsFor, weekStats, personalRecords, nextMatchIn,
-  nextRun, checkRunRules,
+  nextRun, checkRunRules, goalStatus, newlyReachedGoals,
 } from "../src/data/logic.js";
 import { todayISO } from "../src/data/dates.js";
 import { DAY, ROTATION, phaseForWeek, runTargetForWeek, runPlanForWeek, EXERCISES } from "../src/data/program.js";
@@ -322,4 +322,68 @@ test("un esercizio in due sedute progredisce guardando la stessa seduta", () => 
   assert.equal(suggestFor(s, "upper_b", itemB).weight, 5.5, "in Upper B non ancora");
   // Mai fatto in questa seduta: vale l'ultima volta in assoluto.
   assert.equal(lastSetsFor(s, "alzate_laterali", null, "lower_a").date, "2026-10-16");
+});
+
+test("dopo la settimana 12 si va a blocchi di 6: cinque di progressione e uno di scarico", () => {
+  assert.equal(phaseForWeek(12).block, 1);
+  const w13 = phaseForWeek(13);
+  assert.equal(w13.name, "Progressione");
+  assert.equal(w13.block, 2);
+  assert.equal(w13.blockWeek, 1);
+  assert.equal(phaseForWeek(17).name, "Progressione");
+  assert.equal(phaseForWeek(18).name, "Scarico");
+  assert.equal(phaseForWeek(18).setsCap, 2);
+  assert.equal(phaseForWeek(19).block, 3);
+  assert.equal(phaseForWeek(24).name, "Scarico");
+  assert.deepEqual(runPlanForWeek(18), [{ type: "salita", minutes: 25 }]);
+  assert.deepEqual(runPlanForWeek(19), [{ type: "salita", minutes: 30 }]);
+});
+
+const panca = (weight, reps) => reps.map((r, i) => ({ exId: "panca_piana", setNumber: i + 1, weight, reps: r, done: true }));
+const goalPanca = { kind: "lift", exId: "panca_piana", weight: 22, reps: 8, allSets: true, base: { weight: 19, reps: 10 } };
+
+test("obiettivo di carico: conta solo se TUTTE le serie ci arrivano, e resta raggiunto", () => {
+  const s = base();
+  s.sessions.push(session("upper_a", "2026-12-01", panca(22, [8, 8, 6])));
+  let st = goalStatus(s, goalPanca);
+  assert.equal(st.reached, null, "una serie a 6 non basta");
+  assert.ok(st.progress > 0 && st.progress < 1);
+  s.sessions.push(session("upper_a", "2026-12-08", panca(22, [8, 8, 8])));
+  assert.equal(goalStatus(s, goalPanca).reached, "2026-12-08");
+  s.sessions.push(session("upper_a", "2026-12-15", panca(22, [7, 6, 6])));
+  assert.equal(goalStatus(s, goalPanca).reached, "2026-12-08", "una seduta storta non lo toglie");
+  // Due serie sole (scarico) non bastano per "tutte le serie".
+  const d = base();
+  d.sessions.push(session("upper_a", "2026-12-01", panca(23.5, [8, 8])));
+  assert.equal(goalStatus(d, goalPanca).reached, null);
+});
+
+test("obiettivo a corpo libero in una serie: basta la serie migliore, la zavorra è il carico", () => {
+  const s = base({ weights: [{ date: "2026-11-21", kg: 75 }] });
+  const g = { kind: "lift", exId: "dips", weight: 10, reps: 8, allSets: false, base: { weight: 0, reps: 10 } };
+  const dips = (w, reps) => reps.map((r, i) => ({ exId: "dips", setNumber: i + 1, weight: w, reps: r, done: true }));
+  s.sessions.push(session("upper_b", "2026-12-01", dips(5, [8, 6, 5])));
+  const st = goalStatus(s, g);
+  assert.equal(st.reached, null);
+  assert.ok(st.progress > 0, "con la zavorra si avanza");
+  assert.match(st.current, /\+5 kg × 8\/6\/5/);
+  s.sessions.push(session("upper_b", "2026-12-08", dips(10, [8, 5, 4])));
+  assert.equal(goalStatus(s, g).reached, "2026-12-08");
+});
+
+test("obiettivo di peso: conta la media delle ultime tre pesate, non un giorno fortunato", () => {
+  const g = { kind: "weight", kg: 76.5, base: 74.9 };
+  const s = base({ weights: [{ date: "2026-12-01", kg: 75.5 }, { date: "2026-12-02", kg: 75.6 }, { date: "2026-12-03", kg: 77 }] });
+  assert.equal(goalStatus(s, g).reached, null, "la media è 76,0");
+  s.weights.push({ date: "2026-12-04", kg: 77 });
+  assert.equal(goalStatus(s, g).reached, "2026-12-04", "75,6 + 77 + 77 = 76,5");
+});
+
+test("a fine seduta si sa quali obiettivi sono stati appena centrati", () => {
+  const before = base();
+  before.sessions.push({ ...session("upper_a", "2026-12-08", panca(22, [8, 8, 8])), endedAt: null });
+  const after = { ...before, sessions: before.sessions.map((x) => ({ ...x, endedAt: "chiusa" })) };
+  const ids = newlyReachedGoals(before, after).map((g) => g.id);
+  assert.ok(ids.includes("b2_panca"));
+  assert.ok(!ids.includes("m_panca"), "26,5 kg non ancora");
 });

@@ -456,9 +456,23 @@ export const PHASES = [
     rule: "Si chiude puntando ai record sui fondamentali." },
 ];
 
+// Dopo la settimana 12 si continua a blocchi (scelta di Daniele, 21/11): stesse sedute,
+// 5 settimane di progressione e 1 di scarico, all'infinito. Il blocco 1 sono le prime 12.
+export const BLOCK_LENGTH = 6;
+
 export function phaseForWeek(week) {
   const w = Math.max(1, week);
-  return PHASES.find((p) => w >= p.from && w <= p.to) || PHASES[PHASES.length - 1];
+  if (w <= 12) {
+    const p = PHASES.find((x) => w >= x.from && w <= x.to);
+    return { ...p, block: 1, blockWeek: w, blockLength: 12 };
+  }
+  const n = w - 13;
+  const blockWeek = (n % BLOCK_LENGTH) + 1;
+  const base = blockWeek === BLOCK_LENGTH ? PHASES[3] : PHASES[2]; // scarico : progressione
+  return {
+    ...base, from: w - blockWeek + 1, to: w - blockWeek + BLOCK_LENGTH,
+    block: 2 + Math.floor(n / BLOCK_LENGTH), blockWeek, blockLength: BLOCK_LENGTH,
+  };
 }
 
 // ─── Il piano di corsa, settimana per settimana ──────────────────────────────
@@ -482,6 +496,7 @@ export const RUN_PLAN = {
 };
 
 export function runPlanForWeek(week) {
+  if (week > 12) return [{ type: "salita", minutes: phaseForWeek(week).name === "Scarico" ? 25 : 30 }];
   const w = Math.min(12, Math.max(1, week));
   return RUN_PLAN[w] || RUN_PLAN[12];
 }

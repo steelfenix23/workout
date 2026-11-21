@@ -3,6 +3,7 @@ import { useStore } from "../data/store.jsx";
 import { DAY, EX } from "../data/program.js";
 import {
   suggestFor, lastSetsFor, advanceRotation, sessionVolume, estimated1RM, fmt,
+  newlyReachedGoals, goalLabel,
 } from "../data/logic.js";
 
 export default function Session({ sessionId, onClose, onExercise }) {
@@ -98,6 +99,12 @@ export default function Session({ sessionId, onClose, onExercise }) {
         prs.push({ exId: set.exId, weight: set.weight, reps: set.reps });
       }
     }
+    // Lo stato come sarà a seduta chiusa, per sapere quali obiettivi ha appena centrato.
+    const closed = {
+      ...state,
+      sessions: state.sessions.map((x) => (x.id === sessionId ? { ...x, endedAt: "chiusa", sets: done } : x)),
+    };
+    const goals = newlyReachedGoals(state, closed);
     update((s) => {
       const ses = s.sessions.find((x) => x.id === sessionId);
       ses.endedAt = new Date().toISOString();
@@ -110,7 +117,7 @@ export default function Session({ sessionId, onClose, onExercise }) {
       return s;
     });
     await flush();
-    setSummary({ volume, prs, count: done.length });
+    setSummary({ volume, prs, goals, count: done.length });
   }
 
   function abandon() {
@@ -244,6 +251,20 @@ function Summary({ summary, day, onClose }) {
           <div><b className="num">{Math.round(summary.volume)}</b><small>kg di<br />volume</small></div>
           <div><b className="num">{summary.prs.length}</b><small>nuovi<br />record</small></div>
         </div>
+
+        {summary.goals?.length > 0 && (
+          <div className="card">
+            <p className="eyebrow">Obiettivo raggiunto</p>
+            <div className="list">
+              {summary.goals.map((g) => (
+                <div key={g.id}>
+                  <div className="lead"><b>{goalLabel(g)}</b></div>
+                  <span className="badge forza">✓</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {summary.prs.length > 0 && (
           <div className="card">

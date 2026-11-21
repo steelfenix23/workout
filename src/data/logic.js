@@ -3,6 +3,7 @@
 
 import { DAY, EX, phaseForWeek, runTargetForWeek, runPlanForWeek } from "./program.js";
 import { todayISO } from "./dates.js";
+import { GOALS, GOAL_GROUPS } from "./goals.js";
 
 const DAY_MS = 86400000;
 
@@ -339,4 +340,100 @@ export function checkRunRules(state, type, iso = todayISO()) {
     body: "Hai allenato le gambe da meno di 24 ore. Gli intervalli su gambe stanche non allenano il fiato, aumentano solo il rischio. Fai oggi la camminata in salita e sposta gli intervalli.",
     suggest: "salita",
   };
+}
+
+// ─── Obiettivi ───────────────────────────────────────────────────────────────
+
+const clamp01 = (x) => Math.max(0, Math.min(1, x));
+
+/** L'ultimo peso registrato: serve a confrontare i progressi a corpo libero. */
+function bodyKg(state) {
+  const w = [...state.weights].sort((a, b) => a.date.localeCompare(b.date));
+  return w.length ? w[w.length - 1].kg : 75;
+}
+
+/** Forza stimata di una serie; a corpo libero conta anche il peso del corpo. */
+function liftScore(ex, weight, reps, bw) {
+  return estimated1RM((ex?.bodyweight ? bw : 0) + (weight || 0), reps);
+}
+
+function setsMeet(goal, sets) {
+  const ok = (s) => (s.weight || 0) >= goal.weight && s.reps >= goal.reps;
+  if (!goal.allSets) return sets.some(ok);
+  return sets.length >= (goal.minSets ?? 3) && sets.every(ok);
+}
+
+function setsText(ex, sets) {
+  const w = sets[0]?.weight || 0;
+  const reps = sets.map((s) => s.reps).join("/");
+  if (ex?.bodyweight) return w ? `+${fmt(w)} kg × ${reps}` : `${reps} rip.`;
+  return `${fmt(w)} kg × ${reps}`;
+}
+
+/**
+ * A che punto è un obiettivo. reached è la data della prima volta che è stato
+ * centrato (e resta, anche se poi si cala); progress va da 0 a 1 rispetto alla
+ * base concordata. Per gli esercizi con "tutte le serie" conta la serie peggiore.
+ */
+export function goalStatus(state, goal) {
+  if (goal.kind === "weight") {
+    const w = [...state.weights].sort((a, b) => a.date.localeCompare(b.date));
+    const avg = (i) => {
+      const sl = w.slice(Math.max(0, i - 2), i + 1);
+      return sl.reduce((t, x) => t + x.kg, 0) / sl.length;
+    };
+    let reached = null;
+    for (let i = 2; i < w.length; i++) if (avg(i) >= goal.kg) { reached = w[i].date; break; }
+    const current = w.length ? Math.round(avg(w.length - 1) * 10) / 10 : null;
+    return {
+      reached,
+      progress: reached ? 1 : current === null ? 0 : clamp01((current - goal.base) / (goal.kg - goal.base)),
+      current: current === null ? "Nessuna pesata" : `Media delle ultime 3 pesate: ${fmt(current)} kg`,
+    };
+  }
+
+  const ex = EX[goal.exId];
+  const bw = bodyKg(state);
+  const hist = historyFor(state, goal.exId, Infinity).filter((h) => h.sets.some((s) => s.reps > 0));
+  const hit = hist.find((h) => setsMeet(goal, h.sets));
+  const last = hist[hist.length - 1];
+  if (!last) return { reached: null, progress: 0, current: "Mai fatto finora" };
+
+  const target = liftScore(ex, goal.weight, goal.reps, bw);
+  const base = liftScore(ex, goal.base.weight, goal.base.reps, bw);
+  const scores = last.sets.map((s) => liftScore(ex, s.weight, s.reps, bw));
+  const cur = goal.allSets ? Math.min(...scores) : Math.max(...scores);
+  return {
+    reached: hit ? hit.date : null,
+    progress: hit ? 1 : clamp01((cur - base) / (target - base)),
+    current: `Ultima volta: ${setsText(ex, last.sets)}`,
+  };
+}
+
+export function goalLabel(goal) {
+  if (goal.kind === "weight") return `Peso ${fmt(goal.kg)} kg`;
+  const ex = EX[goal.exId];
+  const load = ex?.bodyweight ? (goal.weight ? `+${fmt(goal.weight)} kg × ` : "") : `${fmt(goal.weight)} kg × `;
+  const how = goal.allSets ? "tutte le serie" : "in una serie";
+  const name = (ex?.name ?? goal.exId).replace(/ (con Manubri|alla Sbarra|alle Parallele)$/, "");
+  return `${name} ${load}${goal.reps}${ex?.bodyweight && !goal.weight ? " ripetizioni" : ""} · ${how}`;
+}
+
+/** I gruppi di obiettivi con lo stato di ciascuno, nell'ordine in cui sono scritti. */
+export function goalBoard(state, iso = todayISO()) {
+  return GOAL_GROUPS.map((g) => {
+    const goals = GOALS.filter((x) => x.group === g.id)
+      .map((goal) => ({ goal, label: goalLabel(goal), ...goalStatus(state, goal) }));
+    return {
+      ...g, goals,
+      reachedCount: goals.filter((x) => x.reached).length,
+      daysLeft: daysBetween(iso, g.until),
+      active: iso <= g.until,
+    };
+  });
+}
+
+/** Gli obiettivi centrati per la prima volta passando da uno stato all'altro. */
+export function newlyReachedGoals(before, after) {
+  return GOALS.filter((g) => !goalStatus(before, g).reached && goalStatus(after, g).reached);
 }

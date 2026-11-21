@@ -44,6 +44,16 @@ leggibili su schermo piccolo, tabelle brevi.
   posteriori), Lower B femorali e glutei + estensioni tricipiti. Tolti calf unilaterale e dead
   bug. Esercizi nuovi confermati: estensioni tricipiti sopra la testa, curl supino. **Non
   vuole misure** (vita, foto): basta il peso. La progressione guarda prima la stessa seduta.
+- **Dopo la sett. 12 si continua a blocchi** (scelta del 21/11): stesse sedute, blocchi di 6
+  settimane = 5 di progressione + 1 di scarico (`phaseForWeek`). Blocco 2 = sett. 13-18
+  (27/11 → 7/1). Non vuole cambiare esercizi: la noia non viene da lì.
+- **Obiettivi** (`src/data/goals.js`, confermati il 21/11): gli servono "obiettivi e vederli
+  raggiunti", è la sua leva di motivazione. Calcolati dai dati, niente da compilare; scheda
+  Progressi → Obiettivi, riepilogo in Oggi, "Obiettivo raggiunto" a fine seduta. Blocco 2:
+  panca 22×8, rematore 14,5×8, military 11,5×10, trazioni 6/6/6, front squat 14,5×8 (tutte le
+  serie), peso 76,5 (media 3 pesate). Fine maggio 2027: panca 26,5×8, rematore 19×8, trazioni
+  10 in una serie, dips +10×8, front squat 20,5×8, peso 79. **A fine blocco: rivedere con lui
+  quelli raggiunti e proporre i nuovi** (aggiungere un gruppo in `GOAL_GROUPS`).
 - **Corsa ridotta a mantenimento:** dalla sett. 8 una camminata in salita a settimana (tetto 6%).
 - Corsa (storico): camminata in salita (parte dal 4%, sale di 1 punto ogni 2 settimane), corsa facile
   e lunga **alternate corsa/camminata** nelle prime settimane. Le intensità iniziali erano troppo

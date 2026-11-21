@@ -1,7 +1,7 @@
 import { useStore, todayISO, newId } from "../data/store.jsx";
 import { DAY, EX, RUN_TYPE, runGuidance } from "../data/program.js";
 import {
-  nextDayId, checkRules, currentPhase, weekStats, dow, addDays, suggestFor,
+  nextDayId, checkRules, currentPhase, weekStats, dow, addDays, suggestFor, goalBoard,
   nextRun, checkRunRules,
 } from "../data/logic.js";
 
@@ -148,8 +148,25 @@ export default function Today({ open }) {
 
       <div className="card">
         <p className="eyebrow">Fase</p>
-        <h3>Settimana {phase.week} · {phase.name}</h3>
+        <h3>
+          {phase.block > 1 ? `Blocco ${phase.block} · settimana ${phase.blockWeek} di ${phase.blockLength}` : `Settimana ${phase.week}`}
+          {" · "}{phase.name}
+        </h3>
         <p className="sub">{phase.rule}</p>
+      </div>
+
+      <div className="card">
+        <p className="eyebrow">Obiettivi</p>
+        {goalBoard(state).filter((g) => g.active).map((g) => (
+          <div key={g.id} style={{ marginBottom: 10 }}>
+            <div className="row between">
+              <b>{g.title}</b>
+              <span className="tiny">{g.reachedCount} di {g.goals.length} · mancano {g.daysLeft} giorni</span>
+            </div>
+            <div className="progbar" style={{ marginTop: 6 }}><i style={{ width: `${(g.reachedCount / g.goals.length) * 100}%` }} /></div>
+          </div>
+        ))}
+        <p className="tiny">Il dettaglio è in Progressi.</p>
       </div>
     </>
   );
