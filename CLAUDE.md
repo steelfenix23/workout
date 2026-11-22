@@ -31,6 +31,8 @@ leggibili su schermo piccolo, tabelle brevi.
   acceso (Cloudflare o GitHub+Supabase): **ha detto no**. Resta il **piano dei prossimi giorni
   in Oggi** (`src/data/planner.js`), che si ricalcola da solo (sedute saltate, partite,
   viaggi). Ha un iPhone. **Viaggi = solo riposo**, li segna lui ("Sono via", `state.away`).
+- **Martedì sempre riposo** (22/11): `profile.restDays = [1]`, modificabile in Altro → Giorni di
+  riposo fissi. Gli altri riposi li sceglie il piano (di solito lun-mer-ven-dom).
 - **Dieta nell'app solo in lettura** (scheda Dieta). Mai tracciamento pasti, conteggi, spunte.
 - Ogni esercizio proposto ha un **link video**: URL di *ricerca* YouTube, non video singoli.
   Ha rinunciato ai video incorporati: "ormai ho imparato gli esercizi".

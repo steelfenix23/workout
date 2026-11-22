@@ -41,6 +41,11 @@ export function isFestivo(iso) {
 /** L'ora della seduta: feriali dopo il lavoro, festivi la mattina. */
 export const sessionTime = (iso) => (isFestivo(iso) ? "10:00" : "19:00");
 
+/** Un giorno della settimana che è sempre di riposo (Altro → Giorni di riposo fissi). */
+export function isRestDay(state, iso) {
+  return (state.profile.restDays || []).includes(dow(iso));
+}
+
 export function isAway(state, iso) {
   return (state.away || []).some((a) => iso >= a.from && iso <= a.to);
 }
@@ -89,7 +94,7 @@ export function planDays(state, { from = todayISO(), days = 14, hour = new Date(
     const wanted = Math.max(0, quota - doneInWeek);
 
     const candidates = week.filter((d) =>
-      d >= from && !isAway(state, d) &&
+      d >= from && !isAway(state, d) && !isRestDay(state, d) &&
       !(d === from && (trainedOn.has(from) || open || hour >= LATE_HOUR))
     );
 
@@ -116,7 +121,7 @@ export function planDays(state, { from = todayISO(), days = 14, hour = new Date(
         out.push({ date: d, kind: "train", dayId: byDate.get(d), time: late ? "in giornata" : t, match });
       }
       else if (isAway(state, d)) out.push({ date: d, kind: "away", match });
-      else out.push({ date: d, kind: "rest", match });
+      else out.push({ date: d, kind: "rest", fixed: isRestDay(state, d), match });
     }
     monday = addDays(monday, 7);
   }

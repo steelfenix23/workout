@@ -89,6 +89,29 @@ export default function More() {
       </div>
 
       <div className="card">
+        <p className="eyebrow">Giorni di riposo fissi</p>
+        <div className="row" style={{ gap: 6 }}>
+          {["L", "M", "M", "G", "V", "S", "D"].map((g, i) => {
+            const on = (state.profile.restDays || []).includes(i);
+            return (
+              <button key={i} className={"btn small" + (on ? "" : " ghost")} style={{ flex: 1, padding: "8px 0" }}
+                      aria-pressed={on}
+                      onClick={() => setProfile({
+                        restDays: on ? state.profile.restDays.filter((x) => x !== i)
+                                     : [...(state.profile.restDays || []), i].sort(),
+                      })}>
+                {g}
+              </button>
+            );
+          })}
+        </div>
+        <p className="tiny">
+          In questi giorni il piano non mette mai sedute. Gli altri riposi li sceglie lui, per far
+          stare le sedute della settimana senza mai tre giorni di fila.
+        </p>
+      </div>
+
+      <div className="card">
         <p className="eyebrow">Variante estiva</p>
         <div className="row between">
           <div className="grow">

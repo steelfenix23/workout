@@ -72,3 +72,14 @@ test("feste e orari: sera nei feriali, mattina nel weekend e nelle feste", () =>
   assert.ok(isFestivo("2027-03-29"));                        // Pasquetta 2027
   assert.ok(!isFestivo("2027-03-30"));
 });
+
+test("un giorno di riposo fisso non ha mai sedute, e le 4 stanno negli altri sei", () => {
+  const s = base({ profile: { ...base().profile, restDays: [1] } });   // martedì
+  for (let w = 0; w < 4; w++) {
+    const p = plan(s, addDays(LUN, 7 * w));
+    const tue = p.days.find((d) => d.date === addDays(LUN, 7 * w + 1));
+    assert.equal(tue.kind, "rest");
+    assert.equal(tue.fixed, true);
+    assert.equal(train(p).length, 4, `settimana ${w + 1}`);
+  }
+});

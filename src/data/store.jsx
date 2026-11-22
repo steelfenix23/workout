@@ -59,6 +59,7 @@ export function emptyState() {
       matchDay: null,        // 0=lun … 6=dom, null = variabile
       summerMode: false,
       weightStep: 1.5,       // scatto dei manubri regolabili
+      restDays: [1],         // giorni sempre di riposo, 0=lun … 6=dom: il martedì (scelta del 22/11)
     },
     rotation: [...ROTATION],
     rotationPos: 0,          // la "fila": indice della prossima seduta

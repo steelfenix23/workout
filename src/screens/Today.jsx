@@ -106,7 +106,7 @@ export default function Today({ open }) {
           {plan.days.slice(0, 7).map((d) => (
             <div key={d.date}>
               <div className="lead">
-                <b>{d.kind === "train" ? DAY[d.dayId].name : d.kind === "done" ? `${DAY[d.dayId].name} ✓` : d.kind === "away" ? "Via" : "Riposo"}</b>
+                <b>{d.kind === "train" ? DAY[d.dayId].name : d.kind === "done" ? `${DAY[d.dayId].name} ✓` : d.kind === "away" ? "Via" : d.fixed ? "Riposo fisso" : "Riposo"}</b>
                 <small>
                   {d.date === iso ? "oggi" : dayLabel(d.date)}
                   {d.kind === "train" && ` · ${d.inProgress ? "in corso" : d.time}`}
