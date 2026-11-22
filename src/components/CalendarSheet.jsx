@@ -4,11 +4,12 @@ import { planDays, calendarICS, exportedMap } from "../data/planner.js";
 
 // Portare il piano nel Calendario dell'iPhone.
 //
-// Dall'app aperta con l'icona sulla Home, aprire il file direttamente (la prima
-// versione, 21/11) non faceva niente: iOS lo ignorava in silenzio. Qui ci sono
-// due strade, perché da fuori non si può provare quale funzioni sul suo iPhone:
-// aprire il file in una finestra a parte, oppure passarlo al foglio Condividi.
-// La terza, la mail a se stessi, funziona sempre: Mail riconosce l'allegato.
+// Dall'app aperta con l'icona sulla Home il file non si può aprire direttamente:
+// come data: URL iOS lo ignora, come blob in una finestra nuova Safari non lo
+// trova e mostra l'errore di GitHub (provati il 21-22/11 sul suo iPhone).
+// Allora si apre in Safari una pagina vera del sito, calendario.html, che riceve
+// il file nell'indirizzo (dopo il #, quindi non arriva a nessun server) e lo
+// passa al Calendario da lì. Ripiego: Condividi, poi Mail a se stessi.
 export default function CalendarSheet({ onClose }) {
   const { state, update } = useStore();
   const iso = todayISO();
@@ -18,21 +19,22 @@ export default function CalendarSheet({ onClose }) {
   const calendar = state.settings.calendar;
   const count = Object.keys(exportedMap(plan)).length;
 
-  function file() {
+  function ics() {
     const seq = (calendar?.seq || 0) + 1;
-    const ics = calendarICS(plan, calendar?.exported || {}, seq);
+    const text = calendarICS(plan, calendar?.exported || {}, seq);
     update((s) => {
       s.settings.calendar = { exported: exportedMap(plan), seq, at: iso };
       return s;
     });
-    return new File([ics], "allenamenti.ics", { type: "text/calendar" });
+    return text;
   }
 
+  const file = () => new File([ics()], "allenamenti.ics", { type: "text/calendar" });
+
   function apri() {
-    const url = URL.createObjectURL(file());
-    const w = window.open(url, "_blank");
-    setEsito(w ? "aperto" : "bloccato");
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    const page = new URL("calendario.html", window.location.href);
+    page.hash = encodeURIComponent(ics());
+    window.open(page.href, "_blank");
   }
 
   async function condividi() {
@@ -57,7 +59,9 @@ export default function CalendarSheet({ onClose }) {
         </p>
 
         <button className="btn wide" onClick={apri}>1 · Apri nel Calendario</button>
-        <p className="tiny">Deve comparire l'elenco delle sedute con <b>Aggiungi tutti</b>.</p>
+        <p className="tiny">
+          Si apre Safari: tocca <b>Aggiungi al Calendario</b> e poi <b>Aggiungi tutti</b>.
+        </p>
 
         <button className="btn ghost wide" onClick={condividi}>2 · Condividi il file</button>
         <p className="tiny">

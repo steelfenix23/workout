@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Allenamenti nel Calendario</title>
+<style>
+  :root { --bg: #f2f3f2; --fg: #16191a; --muted: #5d6567; --accent: #c9501c; --card: #fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #15191b; --fg: #eef0f0; --muted: #9aa3a6; --card: #1f2528; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.45 -apple-system, system-ui, sans-serif; }
+  main { max-width: 480px; margin: 0 auto; padding: 32px 16px; }
+  h1 { font-size: 24px; margin: 0 0 8px; }
+  p { color: var(--muted); margin: 0 0 16px; }
+  a.btn { display: block; text-align: center; padding: 15px; border-radius: 12px; font-weight: 700;
+          text-decoration: none; background: var(--accent); color: #fff; margin: 0 0 10px; }
+  a.btn.ghost { background: var(--card); color: var(--fg); border: 1px solid #8884; }
+  .err { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Allenamenti nel Calendario</h1>
+  <p id="msg">Tocca il pulsante: l'iPhone ti mostra le sedute con <b>Aggiungi tutti</b>.</p>
+  <a class="btn" id="add" href="#">Aggiungi al Calendario</a>
+  <a class="btn ghost" id="dl" href="#" download="allenamenti.ics">Non succede niente? Scarica il file</a>
+  <p>Se scarichi il file, aprilo dai Download di Safari o dall'app File. Poi chiudi questa
+     pagina e torna all'app.</p>
+</main>
+<script>
+  // Il calendario arriva dall'app nell'indirizzo, dopo il #: resta nel telefono,
+  // non viene mandato al server. Questa pagina esiste perché dall'app aperta
+  // con l'icona sulla Home l'iPhone non apre i file di calendario; Safari sì.
+  var ics = "";
+  try { ics = decodeURIComponent(location.hash.slice(1)); } catch (e) {}
+  if (ics.indexOf("BEGIN:VCALENDAR") !== 0) {
+    document.getElementById("msg").innerHTML =
+      '<span class="err">Qui non c\'è nessun calendario. Torna all\'app e tocca di nuovo “Apri nel Calendario”.</span>';
+    document.getElementById("add").style.display = "none";
+    document.getElementById("dl").style.display = "none";
+  } else {
+    document.getElementById("add").href = "data:text/calendar;charset=utf-8," + encodeURIComponent(ics);
+    document.getElementById("dl").href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+  }
+</script>
+</body>
+</html>

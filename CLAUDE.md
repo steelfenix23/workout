@@ -30,9 +30,11 @@ leggibili su schermo piccolo, tabelle brevi.
   la sera prima alle 21 e il giorno stesso (17:30 feriali, 9:00 festivi). Niente notifiche push
   (servirebbe un server). Il piano si ricalcola da solo (sedute saltate, partite, viaggi): se
   cambia, Oggi dice "aggiorna il calendario". **Sul suo iPhone (app dalla Home) aprire il
-  .ics come `data:` URL non fa niente** (verificato 21/11): ora il foglio Calendario offre
-  "Apri nel Calendario" (blob in finestra nuova) e "Condividi il file"; ripiego sicuro: Mail a
-  se stesso. Da confermare con lui quale funziona, poi semplificare. **Viaggi = solo riposo**, li segna lui ("Sono via",
+  .ics come `data:` URL non fa niente** (21/11), e un blob in finestra nuova finisce in Safari
+  sulla pagina d'errore di GitHub (22/11). Ora "Apri nel Calendario" apre in Safari
+  `public/calendario.html` col file nell'hash, e lì c'è il pulsante "Aggiungi al Calendario"
+  (+ "Scarica il file"). Ripiego: Condividi → Mail a se stesso. **Da confermare con lui**, poi
+  semplificare. Il service worker mette in cache solo la pagina dell'app, non le altre. **Viaggi = solo riposo**, li segna lui ("Sono via",
   `state.away`).
 - **Dieta nell'app solo in lettura** (scheda Dieta). Mai tracciamento pasti, conteggi, spunte.
 - Ogni esercizio proposto ha un **link video**: URL di *ricerca* YouTube, non video singoli.

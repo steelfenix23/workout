@@ -29,6 +29,10 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return; // Supabase & co. passano diretti
 
+  // Le altre pagine (es. calendario.html) passano dirette: in cache, al posto
+  // dell'app, ci va solo la pagina dell'app.
+  if (request.mode === 'navigate' && url.pathname !== SCOPE && url.pathname !== SCOPE + 'index.html') return;
+
   if (request.mode === 'navigate') {
     // cache: 'no-cache' obbliga a rivalidare con il server invece di fidarsi
     // della cache HTTP. GitHub Pages serve l'HTML con max-age=600, quindi senza
