@@ -136,3 +136,6 @@ invece di leggerli a occhio.
 - **Attenzione ai test con date fisse:** la fase dipende dalla data di oggi, e due volte un test
   con data scritta a mano ha cominciato a fallire da solo bloccando il deploy. Usa `todayISO()`.
 - I dati dell'utente vivono **solo nel suo telefono** (IndexedDB): non sono nel repository.
+  **Mai dirgli di eliminare l'icona dell'app**: perderebbe tutto. Il 22/11, dopo una serie di
+  aggiornamenti ravvicinati (anche del service worker), l'app non si apriva: chiuderla dal
+  multitasking e riaprirla è bastato.
