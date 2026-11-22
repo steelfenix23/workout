@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { planDays, calendarICS, exportedMap, calendarDiff, isFestivo, sessionTime } from "../src/data/planner.js";
+import { planDays, isFestivo, sessionTime } from "../src/data/planner.js";
 import { ROTATION, DAY } from "../src/data/program.js";
 import { addDays } from "../src/data/logic.js";
 
@@ -71,37 +71,4 @@ test("feste e orari: sera nei feriali, mattina nel weekend e nelle feste", () =>
   assert.ok(isFestivo("2026-12-08"));                        // Immacolata
   assert.ok(isFestivo("2027-03-29"));                        // Pasquetta 2027
   assert.ok(!isFestivo("2027-03-30"));
-});
-
-test("il calendario ha un evento per seduta con due promemoria, e annulla quelle spostate", () => {
-  const p = plan(base());
-  const ics = calendarICS(p, { "2026-12-13": "lower_b", ...exportedMap(p) }, 2);
-  const events = ics.split("BEGIN:VEVENT").length - 1;
-  const t = train(p);
-  const cancelled = t.some((d) => d.date === "2026-12-13") ? 0 : 1;
-  assert.equal(events, t.length + cancelled);
-  assert.equal(ics.split("BEGIN:VALARM").length - 1, t.length * 2);
-  assert.match(ics, /TRIGGER:-PT22H/, "sera prima alle 21 per una seduta alle 19");
-  assert.match(ics, /TRIGGER:-PT1H30M/, "giorno stesso alle 17:30");
-  if (cancelled) assert.match(ics, /STATUS:CANCELLED/);
-  assert.ok(ics.endsWith("END:VCALENDAR\r\n"));
-});
-
-test("il piano cambiato rispetto al calendario esportato viene segnalato", () => {
-  const s = base();
-  const exported = exportedMap(plan(s));
-  assert.deepEqual(calendarDiff(plan(s), exported), []);
-  s.away = [{ from: LUN, to: LUN }];
-  assert.ok(calendarDiff(plan(s), exported).includes(LUN));
-});
-
-test("una seduta fatta oggi non fa dire che il piano è cambiato", () => {
-  const s = base();
-  const exported = exportedMap(plan(s));               // esportato prima di allenarsi
-  s.sessions.push({ id: "a", dayId: exported[LUN], date: LUN, endedAt: "x", sets: [] });
-  s.rotationPos = 1;
-  assert.deepEqual(calendarDiff(plan(s), exported), []);
-  // Anche esportando a seduta in corso (oggi escluso dal calendario) e poi chiudendola.
-  const during = { ...exported }; delete during[LUN];
-  assert.deepEqual(calendarDiff(plan(s), during), []);
 });

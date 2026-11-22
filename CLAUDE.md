@@ -24,18 +24,13 @@ leggibili su schermo piccolo, tabelle brevi.
 ## Preferenze ferme
 
 - **Nessun timer di recupero** tra le serie, mai: le pause le gestisce lui.
-- ~~Nessuna notifica~~ → **cambiato il 21/11 su sua richiesta** ("aiutami a essere più costante"):
-  vuole sapere sempre quando allenarsi e quando riposare. Ha un **iPhone**. Scelta: **eventi nel
-  calendario del telefono** (.ics esportato dall'app, `src/data/planner.js`) con 2 promemoria,
-  la sera prima alle 21 e il giorno stesso (17:30 feriali, 9:00 festivi). Niente notifiche push
-  (servirebbe un server). Il piano si ricalcola da solo (sedute saltate, partite, viaggi): se
-  cambia, Oggi dice "aggiorna il calendario". **Sul suo iPhone (app dalla Home) aprire il
-  .ics come `data:` URL non fa niente** (21/11), e un blob in finestra nuova finisce in Safari
-  sulla pagina d'errore di GitHub (22/11). Ora "Apri nel Calendario" apre in Safari
-  `public/calendario.html` col file nell'hash, e lì c'è il pulsante "Aggiungi al Calendario"
-  (+ "Scarica il file"). Ripiego: Condividi → Mail a se stesso. **Da confermare con lui**, poi
-  semplificare. Il service worker mette in cache solo la pagina dell'app, non le altre. **Viaggi = solo riposo**, li segna lui ("Sono via",
-  `state.away`).
+- **Nessuna notifica e nessun servizio esterno** (deciso il 22/11). Il 21/11 aveva chiesto avvisi
+  per essere costante: provato il calendario dell'iPhone (.ics), ma dall'app sulla Home l'iPhone
+  non lo apre (né come `data:`, né blob, né da una pagina in Safari). Vuole tutto **automatico,
+  senza scaricare niente**; l'unica via sarebbero notifiche push con un servizio online sempre
+  acceso (Cloudflare o GitHub+Supabase): **ha detto no**. Resta il **piano dei prossimi giorni
+  in Oggi** (`src/data/planner.js`), che si ricalcola da solo (sedute saltate, partite,
+  viaggi). Ha un iPhone. **Viaggi = solo riposo**, li segna lui ("Sono via", `state.away`).
 - **Dieta nell'app solo in lettura** (scheda Dieta). Mai tracciamento pasti, conteggi, spunte.
 - Ogni esercizio proposto ha un **link video**: URL di *ricerca* YouTube, non video singoli.
   Ha rinunciato ai video incorporati: "ormai ho imparato gli esercizi".

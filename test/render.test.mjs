@@ -169,10 +169,9 @@ test("Progressi si apre sugli obiettivi del blocco e di fine maggio", () => {
   assert.match(html, /di 6 raggiunti/);
 });
 
-test("Oggi mostra il piano dei prossimi giorni e il pulsante per il calendario", () => {
+test("Oggi mostra il piano dei prossimi giorni", () => {
   const html = render("Today", state());
   assert.match(html, /I prossimi giorni/);
-  assert.match(html, /Aggiungi al calendario/);
   assert.match(html, /Sono via/);
 });
 
@@ -181,10 +180,4 @@ test("il foglio dei viaggi permette di segnare dal-al e mostra quelli futuri", (
   assert.match(html, /Dal/);
   assert.match(html, /Segna il viaggio/);
   assert.match(html, /10\/1 → /);
-});
-
-test("il foglio del calendario offre due strade per l'iPhone", () => {
-  const html = render("CalendarSheet", state());
-  assert.match(html, /Apri nel Calendario/);
-  assert.match(html, /Condividi il file/);
 });

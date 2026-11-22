@@ -4,7 +4,7 @@ import {
   nextDayId, checkRules, currentPhase, weekStats, dow, addDays, suggestFor, goalBoard,
   nextRun, checkRunRules,
 } from "../data/logic.js";
-import { planDays, calendarDiff } from "../data/planner.js";
+import { planDays } from "../data/planner.js";
 
 const DOW = ["L", "M", "M", "G", "V", "S", "D"];
 
@@ -20,8 +20,6 @@ export default function Today({ open }) {
   const plan = planDays(state, { from: iso });
   const todayPlan = plan.days[0];
   const nextTrain = plan.days.find((d) => d.kind === "train" && d.date > iso);
-  const calendar = state.settings.calendar;
-  const changed = calendarDiff(plan, calendar?.exported);
 
   const openSession = state.sessions.find((s) => !s.endedAt);
   const dayId = openSession ? openSession.dayId : nextDayId(state);
@@ -104,11 +102,6 @@ export default function Today({ open }) {
 
       <div className="card">
         <p className="eyebrow">I prossimi giorni</p>
-        {changed?.length > 0 && (
-          <p className="tiny" style={{ color: "var(--forza)" }}>
-            <b>Il piano è cambiato</b> ({changed.map(dayLabel).join(", ")}): aggiorna il calendario.
-          </p>
-        )}
         <div className="list">
           {plan.days.slice(0, 7).map((d) => (
             <div key={d.date}>
@@ -129,12 +122,9 @@ export default function Today({ open }) {
             Settimana del {dayLabel(w.monday)}: con il viaggio ci stanno {w.planned} sedute su {w.quota}. Va bene così.
           </p>
         ))}
-        <button className="btn ghost wide" onClick={() => open({ kind: "calendar" })}>
-          {calendar ? "Aggiorna il calendario" : "Aggiungi al calendario"}
-        </button>
         <p className="tiny">
-          Due promemoria per seduta: la sera prima alle 21 e il giorno stesso (17:30, nei festivi
-          alle 9). La camminata in salita falla quando vuoi, anche nei giorni di riposo.
+          Si ricalcola da solo se salti una seduta, segni una partita o un viaggio. La camminata
+          in salita falla quando vuoi, anche nei giorni di riposo.
         </p>
       </div>
 

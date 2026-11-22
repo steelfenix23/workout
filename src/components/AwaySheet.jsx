@@ -36,7 +36,7 @@ export default function AwaySheet({ onClose }) {
         <h2>Sono via</h2>
         <p className="sub">
           Segna i giorni in cui sei fuori casa. Il piano non ci mette sedute e sposta le altre
-          prima e dopo il viaggio. Poi aggiorna il calendario dalla schermata Oggi.
+          prima e dopo il viaggio.
         </p>
 
         <div className="row">
